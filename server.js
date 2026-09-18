@@ -15,6 +15,51 @@ app.get('/', (req, res) => {
   res.redirect('/stage.html');
 });
 
+// Route aliases for Stage Display screen
+app.get('/display', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'display.html'));
+});
+app.get('/screen', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'display.html'));
+});
+
+// Stage sync state for multi-screen sync (stage.html controller <-> display.html big screen)
+let stageState = {
+  selectedPrizeId: null,
+  selectedPrize: null,
+  drawCount: 1,
+  deptMode: 'all',
+  departments: 'all',
+  isDrawing: false,
+  currentWinners: [],
+  showQr: false,
+  lastUpdated: Date.now()
+};
+
+const sseClients = new Set();
+
+function broadcastToStage(event, data) {
+  const payload = JSON.stringify({ event, data, timestamp: Date.now() });
+  for (const client of sseClients) {
+    try {
+      client.write(`event: message\ndata: ${payload}\n\n`);
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  }
+}
+
+// Keep-alive heartbeat every 25 seconds for cloud hosting (Render, Cloudflare, etc.)
+setInterval(() => {
+  for (const client of sseClients) {
+    try {
+      client.write(': keepalive\n\n');
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  }
+}, 25000);
+
 const db = new sqlite3.Database('./database.db', (err) => {
   if (err) console.error("Database connection error:", err.message);
   else console.log("Connected to SQLite database.");
@@ -65,6 +110,88 @@ db.serialize(() => {
     } else {
       db.run(`UPDATE ranks SET order_index = id WHERE order_index IS NULL OR order_index = 0`);
     }
+  });
+});
+
+// APIs - Real-time Stage Display Sync (SSE & Control)
+app.get('/api/stage-stream', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+  res.write('\n');
+  sseClients.add(res);
+
+  // ส่งสถานะปัจจุบันและจำนวนจอที่เชื่อมต่อให้ทันที
+  const initPayload = JSON.stringify({
+    event: 'init_state',
+    data: {
+      ...stageState,
+      clientCount: sseClients.size
+    },
+    timestamp: Date.now()
+  });
+  res.write(`event: message\ndata: ${initPayload}\n\n`);
+
+  // แจ้งทุกจอว่ามีจอเชื่อมต่อเข้ามา
+  broadcastToStage('client_count', { count: sseClients.size });
+
+  req.on('close', () => {
+    sseClients.delete(res);
+    broadcastToStage('client_count', { count: sseClients.size });
+  });
+});
+
+app.post('/api/stage-sync', (req, res) => {
+  const { action, payload } = req.body || {};
+  if (!action) return res.status(400).json({ error: "Missing action" });
+
+  if (action === 'prize_select') {
+    stageState.selectedPrizeId = payload ? payload.prizeId : null;
+    stageState.selectedPrize = payload ? payload.prize : null;
+    stageState.isDrawing = false;
+    broadcastToStage('prize_selected', {
+      prizeId: stageState.selectedPrizeId,
+      prize: stageState.selectedPrize
+    });
+  } else if (action === 'count_change') {
+    stageState.drawCount = payload ? payload.count : 1;
+    broadcastToStage('count_changed', { count: stageState.drawCount });
+  } else if (action === 'dept_change') {
+    stageState.deptMode = payload ? payload.mode : 'all';
+    stageState.departments = payload ? payload.departments : 'all';
+    broadcastToStage('dept_changed', {
+      mode: stageState.deptMode,
+      departments: stageState.departments
+    });
+  } else if (action === 'draw_start') {
+    stageState.isDrawing = true;
+    stageState.currentWinners = [];
+    broadcastToStage('draw_started', {
+      prizeId: stageState.selectedPrizeId,
+      prize: stageState.selectedPrize,
+      count: payload && payload.count ? payload.count : stageState.drawCount
+    });
+  } else if (action === 'qr_toggle') {
+    stageState.showQr = !!(payload && payload.show);
+    broadcastToStage('qr_toggled', { show: stageState.showQr });
+  } else if (action === 'winner_action') {
+    broadcastToStage('winner_action', payload);
+  } else if (action === 'display_reset') {
+    stageState.isDrawing = false;
+    stageState.currentWinners = [];
+    broadcastToStage('display_reset', {});
+  }
+
+  res.json({ success: true, clientCount: sseClients.size, stageState });
+});
+
+app.get('/api/stage-status', (req, res) => {
+  res.json({
+    clientCount: sseClients.size,
+    stageState
   });
 });
 
@@ -264,11 +391,16 @@ app.get('/api/admin/prizes', (req, res) => {
 app.post('/api/prizes', (req, res) => {
   const { name, total_amount } = req.body;
   db.run(`INSERT INTO prizes (name, total_amount, remaining_amount) VALUES (?, ?, ?)`, [name, total_amount, total_amount], function (err) {
-    res.json({ id: this.lastID, name, total_amount, remaining_amount: total_amount });
+    const newPrize = { id: this.lastID, name, total_amount, remaining_amount: total_amount };
+    broadcastToStage('prizes_updated', { action: 'created', prize: newPrize });
+    res.json(newPrize);
   });
 });
 app.delete('/api/prizes/:id', (req, res) => {
-  db.run(`DELETE FROM prizes WHERE id = ?`, [req.params.id], () => res.json({ success: true }));
+  db.run(`DELETE FROM prizes WHERE id = ?`, [req.params.id], () => {
+    broadcastToStage('prizes_updated', { action: 'deleted', id: req.params.id });
+    res.json({ success: true });
+  });
 });
 
 // นับจำนวนผู้มีสิทธิ์จับฉลากตามสังกัดที่เลือก
@@ -312,24 +444,38 @@ app.post('/api/draw', (req, res) => {
   }
 
   db.all(empQuery, empParams, (err, employees) => {
-    if (err) return res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
+    if (err) {
+      stageState.isDrawing = false;
+      broadcastToStage('draw_error', { error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
+      return res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
+    }
     if (!employees || employees.length === 0) {
-      return res.status(400).json({ error: "ไม่มีผู้มีสิทธิ์เหลือแล้วในเงื่อนไขสังกัดที่เลือก" });
+      stageState.isDrawing = false;
+      const errMsg = "ไม่มีผู้มีสิทธิ์เหลือแล้วในเงื่อนไขสังกัดที่เลือก";
+      broadcastToStage('draw_error', { error: errMsg });
+      return res.status(400).json({ error: errMsg });
     }
 
     if (employees.length < drawCount) {
-      return res.status(400).json({ 
-        error: `มีผู้มีสิทธิ์เหลือเพียง ${employees.length} คน (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม` 
-      });
+      stageState.isDrawing = false;
+      const errMsg = `มีผู้มีสิทธิ์เหลือเพียง ${employees.length} คน (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม`;
+      broadcastToStage('draw_error', { error: errMsg });
+      return res.status(400).json({ error: errMsg });
     }
 
     db.get("SELECT * FROM prizes WHERE id = ? AND remaining_amount > 0", [prize_id], (err, prize) => {
-      if (err || !prize) return res.status(400).json({ error: "ของรางวัลนี้หมดแล้ว หรือไม่พบข้อมูล" });
+      if (err || !prize) {
+        stageState.isDrawing = false;
+        const errMsg = "ของรางวัลนี้หมดแล้ว หรือไม่พบข้อมูล";
+        broadcastToStage('draw_error', { error: errMsg });
+        return res.status(400).json({ error: errMsg });
+      }
 
       if (prize.remaining_amount < drawCount) {
-        return res.status(400).json({ 
-          error: `ของรางวัลเหลือเพียง ${prize.remaining_amount} รางวัล (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม` 
-        });
+        stageState.isDrawing = false;
+        const errMsg = `ของรางวัลเหลือเพียง ${prize.remaining_amount} รางวัล (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม`;
+        broadcastToStage('draw_error', { error: errMsg });
+        return res.status(400).json({ error: errMsg });
       }
 
       // สุ่มเลือกผู้โชคดีแบบไม่ซ้ำกันจำนวน drawCount คน (Fisher-Yates shuffle)
@@ -356,9 +502,13 @@ app.post('/api/draw', (req, res) => {
         insertWinnerStmt.finalize();
 
         db.run("UPDATE prizes SET remaining_amount = remaining_amount - ? WHERE id = ?", [drawCount, prize_id], (err) => {
-          if (err) return res.status(500).json({ error: "เกิดข้อผิดพลาดในการปรับปรุงยอดรางวัล" });
+          if (err) {
+            stageState.isDrawing = false;
+            broadcastToStage('draw_error', { error: "เกิดข้อผิดพลาดในการปรับปรุงยอดรางวัล" });
+            return res.status(500).json({ error: "เกิดข้อผิดพลาดในการปรับปรุงยอดรางวัล" });
+          }
 
-          res.json({
+          const resultData = {
             success: true,
             count: drawCount,
             winners: pickedWinners,
@@ -369,7 +519,16 @@ app.post('/api/draw', (req, res) => {
             },
             // สำหรับ backward compatibility
             winner: pickedWinners[0]
-          });
+          };
+
+          stageState.isDrawing = false;
+          stageState.currentWinners = pickedWinners;
+          if (stageState.selectedPrize && stageState.selectedPrize.id === prize_id) {
+            stageState.selectedPrize.remaining_amount = prize.remaining_amount - drawCount;
+          }
+          broadcastToStage('draw_result', resultData);
+
+          res.json(resultData);
         });
       });
     });
@@ -393,13 +552,20 @@ app.post('/api/winners/:id/cancel', (req, res) => {
       // ลบจากรายการผู้ได้รับรางวัล
       db.run("DELETE FROM winners WHERE id = ?", [winnerId]);
 
-      res.json({ 
+      const cancelResult = { 
         success: true, 
         message: "ยกเลิกผลรางวัลเรียบร้อย",
+        winner_id: parseInt(winnerId),
         prize_id: winner.prize_id,
         employee_id: winner.employee_id,
         status: empStatus
-      });
+      };
+      if (stageState.selectedPrize && stageState.selectedPrize.id === winner.prize_id) {
+        stageState.selectedPrize.remaining_amount = (stageState.selectedPrize.remaining_amount || 0) + 1;
+      }
+      broadcastToStage('winner_cancelled', cancelResult);
+
+      res.json(cancelResult);
     });
   });
 });
@@ -510,6 +676,9 @@ app.post('/api/admin/reset-winners', (req, res) => {
             return res.status(500).json({ error: "เกิดข้อผิดพลาดในการล้างประวัติรางวัล" });
           }
           db.run("COMMIT", () => {
+            stageState.isDrawing = false;
+            stageState.currentWinners = [];
+            broadcastToStage('winners_reset', {});
             res.json({ success: true, message: "ล้างผลรางวัลและคืนสิทธิ์พนักงานเรียบร้อยแล้ว" });
           });
         });

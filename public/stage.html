@@ -36,6 +36,12 @@
 
     <!-- ลิงก์และปุ่มเครื่องมือสำหรับโปรเจกเตอร์เวที -->
     <div class="flex items-center gap-2 flex-wrap justify-center">
+      <!-- ปุ่มเปิดจอแสดงผลเวทีใหญ่สำหรับฉายโปรเจกเตอร์ -->
+      <a href="/display.html" target="_blank" class="text-xs bg-white hover:bg-pink-50 text-pink-700 border-2 border-pink-300 font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm" title="เปิดจอแสดงผลเวทีใหญ่สำหรับฉายโปรเจกเตอร์/LED">
+        <span>🖥️ จอใหญ่ (Display)</span>
+        <span id="displaySyncCount" class="text-[10px] bg-slate-400 text-white font-bold px-1.5 py-0.5 rounded-full shadow">0 จอ</span>
+      </a>
+
       <!-- ปุ่มเปิด QR Code ฉายขึ้นจอเวที -->
       <button onclick="openStageQRModal()" class="text-xs bg-white hover:bg-pink-50 text-pink-700 border border-pink-200 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm" title="ฉาย QR Code ขึ้นจอให้ผู้ร่วมงานสแกน (คีย์ลัด: Q)">
         <span>📲 QR ลงทะเบียน</span>
@@ -345,6 +351,44 @@
       window.open(targetUrl, '_blank');
     }
 
+    // ฟังก์ชันส่งสัญญาณซิงค์ไปยังจอแสดงผลเวทีใหญ่ (display.html)
+    async function syncToStage(action, payload) {
+      try {
+        await fetch(`${API}/stage-sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, payload })
+        });
+      } catch(e) {}
+    }
+
+    // ฟังก์ชันติดตามสถานะจอแสดงผลเวทีใหญ่
+    function initDisplaySyncWatcher() {
+      try {
+        const es = new EventSource(`${API}/stage-stream`);
+        es.onmessage = (e) => {
+          try {
+            const packet = JSON.parse(e.data);
+            if (packet.event === 'client_count' || packet.event === 'init_state') {
+              const count = packet.data.count || packet.data.clientCount || 0;
+              const badge = document.getElementById('displaySyncCount');
+              if (badge) {
+                // คำนวณจำนวนจอแสดงผล (ลบตัวเครื่องควบคุม 1 เครื่อง)
+                const screens = Math.max(0, count - 1);
+                if (screens > 0) {
+                  badge.textContent = `${screens} จอ`;
+                  badge.className = "text-[10px] bg-emerald-500 text-white font-bold px-1.5 py-0.5 rounded-full shadow animate-pulse";
+                } else {
+                  badge.textContent = `0 จอ`;
+                  badge.className = "text-[10px] bg-slate-400 text-white font-bold px-1.5 py-0.5 rounded-full shadow";
+                }
+              }
+            }
+          } catch(err) {}
+        };
+      } catch(err) {}
+    }
+
     // ระบบสังเคราะห์เสียง Web Audio API (ทำงานได้บนทุกเบราว์เซอร์ ไม่ต้องพึ่งพาไฟล์เสียงภายนอก)
     class SoundEffects {
       constructor() {
@@ -543,6 +587,9 @@
       updateSelectedPrizeDisplay();
       validateAndAdjustDrawCount();
       updateEligibleCount();
+
+      const prize = allPrizes.find(p => p.id === id);
+      syncToStage('prize_select', { prizeId: id, prize });
     }
 
     // อัปเดตการแสดงผลของรางวัลที่เลือกตรงกลาง
@@ -601,6 +648,7 @@
       });
 
       updateSelectedPrizeDisplay();
+      syncToStage('count_change', { count: drawCount });
     }
 
     // 3. โหลดรายชื่อสังกัด
@@ -650,6 +698,7 @@
       }
 
       updateEligibleCount();
+      syncToStage('dept_change', { mode: deptMode, departments: getSelectedDepartments() });
     }
 
     // Modal เลือกหลายสังกัด
@@ -690,6 +739,7 @@
       document.getElementById('customDeptCount').textContent = selectedCustomDepts.length;
       closeDeptModal();
       updateEligibleCount();
+      syncToStage('dept_change', { mode: deptMode, departments: getSelectedDepartments() });
     }
 
     function getSelectedDepartments() {
@@ -802,6 +852,9 @@
       const note = document.getElementById('drawStatusNote');
 
       note.textContent = `กำลังสุ่มผู้โชคดีพร้อมกัน ${countToDraw} ท่าน...`;
+
+      // ส่งสัญญาณให้จอใหญ่เวทีเริ่มหมุนตัวเลขสุ่มทันที
+      syncToStage('draw_start', { count: countToDraw });
 
       // อนิเมชันวิ่งตัวเลขสุ่ม พร้อมเสียง Ticking
       const rollInterval = setInterval(() => {
@@ -936,6 +989,8 @@
       document.getElementById('winnerModal').classList.add('hidden');
       document.getElementById('drawBtn').disabled = false;
       currentBatchWinners = [];
+      syncToStage('winner_action', { action: 'confirmed' });
+      syncToStage('display_reset', {});
     }
 
     // สละสิทธิ์เฉพาะคนใดคนหนึ่งใน Modal
@@ -1068,16 +1123,21 @@
 
     // ระบบ Stage QR Code Modal
     async function initServerInfoAndQR() {
-      try {
-        const res = await fetch(`${API}/server-info`);
-        const data = await res.json();
-        const host = data.defaultIp || window.location.hostname || 'localhost';
-        const port = data.port || window.location.port || 3000;
-        serverLanUrl = `http://${host}:${port}/register.html`;
-      } catch (err) {
-        const host = window.location.hostname || 'localhost';
-        const port = window.location.port ? `:${window.location.port}` : '';
-        serverLanUrl = `${window.location.protocol}//${host}${port}/register.html`;
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isLocal && !isFile && window.location.origin) {
+        serverLanUrl = `${window.location.origin}/register.html`;
+      } else {
+        try {
+          const res = await fetch(`${API}/server-info`);
+          const data = await res.json();
+          const host = data.defaultIp || window.location.hostname || 'localhost';
+          const port = data.port || window.location.port || 3000;
+          serverLanUrl = `http://${host}:${port}/register.html`;
+        } catch (err) {
+          const host = window.location.hostname || 'localhost';
+          const port = window.location.port ? `:${window.location.port}` : '';
+          serverLanUrl = `${window.location.protocol}//${host}${port}/register.html`;
+        }
       }
 
       // Generate Stage QR code
@@ -1103,10 +1163,12 @@
     function openStageQRModal() {
       sfx.playPop();
       document.getElementById('stageQrModal').classList.remove('hidden');
+      syncToStage('qr_toggle', { show: true });
     }
 
     function closeStageQRModal() {
       document.getElementById('stageQrModal').classList.add('hidden');
+      syncToStage('qr_toggle', { show: false });
     }
 
     function copyStageQrUrl() {
@@ -1161,6 +1223,7 @@
     loadDepartments();
     loadWinners();
     initServerInfoAndQR();
+    initDisplaySyncWatcher();
 
     // ตั้งค่าหน้าจอเริ่มต้นสำหรับอุปกรณ์พกพา
     if (window.innerWidth < 1024) {
