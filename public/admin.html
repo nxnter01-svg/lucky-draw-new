@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - ระบบจัดการจับฉลาก</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Prompt', sans-serif; }
+    button, input, select { touch-action: manipulation; }
+  </style>
+</head>
+<body class="bg-slate-100 p-4 sm:p-8">
+  <div class="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+    
+    <!-- แถบแจ้งเตือนเมื่อเปิดผ่านไฟล์ (file://) โดยตรง -->
+    <div id="fileProtocolBanner" class="hidden bg-amber-500/10 border-2 border-amber-500 p-4 rounded-2xl shadow-sm text-slate-800">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="flex items-start gap-3">
+          <span class="text-2xl">⚠️</span>
+          <div>
+            <div class="font-black text-sm text-amber-950">คุณกำลังเปิดไฟล์ผ่าน file:/// โดยตรง (ดับเบิลคลิกไฟล์จากเครื่อง)</div>
+            <div class="text-xs text-amber-900 mt-0.5 font-medium">เบราว์เซอร์อาจบล็อกการเชื่อมต่อฐานข้อมูล แนะนำให้คลิกเพื่อใช้งานผ่านเว็บเซิร์ฟเวอร์เต็มรูปแบบ</div>
+          </div>
+        </div>
+        <a id="btnOpenLocalhost" href="http://localhost:3000/admin.html" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl shadow transition whitespace-nowrap flex items-center gap-1.5">
+          🚀 เปิดผ่าน localhost:3000
+        </a>
+      </div>
+    </div>
+
+    <!-- แถบแจ้งเตือนเมื่อยังไม่ได้รันเซิร์ฟเวอร์หรือเชื่อมต่อไม่ได้ -->
+    <div id="serverConnectionAlert" class="hidden bg-rose-50 border-2 border-rose-500 p-4 rounded-2xl shadow-sm text-slate-800">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="flex items-start gap-3">
+          <span class="text-2xl">🔴</span>
+          <div>
+            <div class="font-black text-sm text-rose-950">ยังไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ (http://localhost:3000)</div>
+            <div class="text-xs text-rose-800 mt-0.5">กรุณาตรวจสอบว่าได้รันคำสั่ง <code class="bg-rose-100 text-rose-900 px-1.5 py-0.5 rounded font-mono font-bold">node server.js</code> ในโฟลเดอร์โปรเจกต์แล้ว</div>
+          </div>
+        </div>
+        <button onclick="loadData(); initServerInfoAndQr();" class="bg-rose-600 hover:bg-rose-700 text-white font-black text-xs px-4 py-2 rounded-xl shadow transition whitespace-nowrap flex items-center gap-1.5">
+          🔄 ลองเชื่อมต่อใหม่
+        </button>
+      </div>
+    </div>
+
+    <!-- ส่วนหัว -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 border-slate-300 gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-black text-slate-800 flex items-center gap-2">
+          <span>⚙️</span> แผงควบคุมระบบ (Admin Dashboard)
+        </h1>
+        <p class="text-xs text-slate-500 mt-0.5">จัดการข้อมูลพนักงาน ของรางวัล ยศ และตรวจสอบผลรางวัล</p>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        <button onclick="openBulkImportModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shadow flex items-center gap-1.5 transition">
+          📋 นำเข้าพนักงานชุดใหญ่
+        </button>
+        <button onclick="openResetWinnersModal()" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shadow flex items-center gap-1.5 transition">
+          🔄 ล้างผลรางวัลทั้งหมด
+        </button>
+        <a id="linkRegister" href="register.html" onclick="openPage('register.html', event)" target="_blank" class="bg-slate-800 hover:bg-slate-700 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold shadow flex items-center gap-1.5 transition">
+          📝 หน้าลงทะเบียน
+        </a>
+        <a id="linkStage" href="stage.html" onclick="openPage('stage.html', event)" target="_blank" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black shadow flex items-center gap-1.5 transition">
+          🖥️ หน้าจอเวที (Stage)
+        </a>
+      </div>
+    </div>
+
+    <!-- สถิติภาพรวมระบบ (Quick Stats Overview) -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="text-xs font-bold text-slate-400 uppercase">👥 พนักงานทั้งหมด</div>
+        <div id="statTotalEmp" class="text-2xl sm:text-3xl font-black text-slate-800 mt-1">0 คน</div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="text-xs font-bold text-emerald-600 uppercase">🟢 ผู้มีสิทธิ์ลุ้นรางวัล</div>
+        <div id="statEligibleEmp" class="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">0 คน</div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="text-xs font-bold text-amber-600 uppercase">🏆 ได้รับรางวัลแล้ว</div>
+        <div id="statWonEmp" class="text-2xl sm:text-3xl font-black text-amber-600 mt-1">0 คน</div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div class="text-xs font-bold text-purple-600 uppercase">🎁 รางวัลคงเหลือ / ทั้งหมด</div>
+        <div id="statPrizes" class="text-2xl sm:text-3xl font-black text-purple-600 mt-1">0 / 0</div>
+      </div>
+    </div>
+
+    <!-- ส่วน QR Code -->
+    <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="space-y-3 max-w-xl">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">📲</span>
+          <h2 class="text-2xl font-bold text-amber-400">QR Code ลงทะเบียน (ทุกอุปกรณ์)</h2>
+        </div>
+        <p class="text-sm text-slate-300">
+          ผู้เข้าร่วมงานสามารถสแกนด้วยสมาร์ตโฟน (iOS/Android) ในวง Wi-Fi หรือ LAN เดียวกันเพื่อลงทะเบียนรับรหัสสุ่ม
+        </p>
+        <div class="flex flex-wrap gap-2 items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700">
+          <span class="text-xs text-slate-400 font-bold whitespace-nowrap">IP เครื่องเซิร์ฟเวอร์:</span>
+          <select id="lanIpSelect" onchange="onIpSelectChange()" class="bg-slate-900 text-amber-300 text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 focus:outline-none font-mono font-bold"></select>
+          <input type="text" id="serverIp" class="bg-slate-900 text-amber-300 text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 focus:outline-none font-mono" placeholder="IP หรือ Hostname">
+          <button onclick="generateQRCode()" class="bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-amber-400 transition shadow">สร้าง QR ใหม่</button>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="copyQrLink()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
+            <span id="copyAdminQrText">📋 คัดลอกลิงก์</span>
+          </button>
+          <button onclick="downloadQRCode()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
+            💾 บันทึกภาพ QR Code
+          </button>
+        </div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl shadow-lg flex flex-col items-center">
+        <div id="qrcode"></div>
+        <a id="qrLink" href="#" target="_blank" class="text-xs text-blue-600 mt-2 font-bold hover:underline">ทดสอบเปิดหน้าลงทะเบียน</a>
+      </div>
+    </div>
+
+    <!-- ส่วนฟอร์มเพิ่มข้อมูล -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- ฟอร์มเพิ่มสังกัด -->
+      <div class="bg-white p-6 rounded-xl shadow space-y-4 border-t-4 border-purple-500">
+        <h2 class="text-xl font-bold">🏢 เพิ่มสังกัด</h2>
+        <form id="deptForm" class="space-y-3">
+          <input type="text" id="deptName" placeholder="ชื่อสังกัด (เช่น กองบิน 1, แผนกช่าง, กร.)" class="w-full border p-2 rounded focus:outline-purple-500" required>
+          <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded font-bold">บันทึก</button>
+        </form>
+      </div>
+
+      <!-- ฟอร์มเพิ่มพนักงาน (มีเลือกยศ แยกชื่อ-นามสกุล พร้อมปุ่มจัดการยศ) -->
+      <div class="bg-white p-6 rounded-xl shadow space-y-4 border-t-4 border-blue-500">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-bold">➕ เพิ่มรายชื่อ (สุ่มรหัสให้)</h2>
+          <button type="button" onclick="openRankModal()" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 shadow-sm transition">
+            🎖️ จัดการยศ
+          </button>
+        </div>
+        <form id="empForm" class="space-y-3">
+          <div class="flex gap-2">
+            <select id="empRankSelect" class="w-full border p-2 rounded focus:outline-blue-500" required>
+              <option value="">-- เลือกยศ / คำนำหน้า --</option>
+            </select>
+            <button type="button" onclick="openRankModal()" title="เพิ่ม / แก้ไข / ลบ รายการยศ" class="bg-slate-100 hover:bg-slate-200 border text-slate-700 px-2.5 py-1 rounded text-sm font-bold whitespace-nowrap">
+              ⚙️ จัดการยศ
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <input type="text" id="empFirstName" placeholder="ชื่อ" class="w-full border p-2 rounded focus:outline-blue-500 text-sm" required autocomplete="off">
+            </div>
+            <div>
+              <input type="text" id="empLastName" placeholder="นามสกุล" class="w-full border p-2 rounded focus:outline-blue-500 text-sm" required autocomplete="off">
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-400 -mt-1">⚠️ ชื่อ-สกุล ห้ามเว้นวรรค/อักขระพิเศษ</p>
+          <select id="empDeptSelect" class="w-full border p-2 rounded focus:outline-blue-500" required></select>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold">บันทึก</button>
+        </form>
+      </div>
+
+      <!-- ฟอร์มเพิ่มรางวัล -->
+      <div class="bg-white p-6 rounded-xl shadow space-y-4 border-t-4 border-emerald-500">
+        <h2 class="text-xl font-bold">🎁 เพิ่มรางวัล</h2>
+        <form id="prizeForm" class="space-y-3">
+          <input type="text" id="prizeName" placeholder="ชื่อรางวัล" class="w-full border p-2 rounded focus:outline-emerald-500" required>
+          <input type="number" id="prizeAmount" placeholder="จำนวน" class="w-full border p-2 rounded focus:outline-emerald-500" min="1" required>
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-bold">บันทึก</button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- ส่วนแสดงตารางข้อมูล -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="bg-white p-6 rounded-xl shadow space-y-4">
+        <h2 class="font-bold border-b pb-2 text-purple-700">รายการสังกัด</h2>
+        <table class="w-full text-sm"><tbody id="deptTable" class="divide-y divide-gray-100"></tbody></table>
+      </div>
+      <div class="bg-white p-6 rounded-xl shadow space-y-4">
+        <div class="space-y-2 border-b pb-3">
+          <div class="flex flex-wrap justify-between items-center gap-1">
+            <h2 class="font-bold text-blue-700 flex items-center gap-1.5">
+              <span>👥</span> รายชื่อพนักงาน (<span id="totalEmpCount">0</span> คน)
+            </h2>
+            <span class="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold shadow-sm">
+              ✨ เรียงตาม: ลำดับยศ ➔ ชื่อ (ก-ฮ)
+            </span>
+          </div>
+          <!-- ส่วนเลือกสังกัด เพื่อแยกรายชื่อตามสังกัด -->
+          <div class="flex items-center gap-2">
+            <label for="filterDeptSelect" class="text-xs font-bold text-slate-600 whitespace-nowrap">แยกตามสังกัด:</label>
+            <select id="filterDeptSelect" onchange="renderEmployees()" class="w-full text-xs border border-slate-300 rounded-lg p-2 bg-slate-50 font-bold text-slate-800 focus:outline-blue-500">
+              <option value="all">🏢 แสดงทุกสังกัด (แยกเป็นรายสังกัด)</option>
+            </select>
+          </div>
+        </div>
+        <!-- แสดงรายการพนักงานแยกตามสังกัด -->
+        <div id="empContainer" class="space-y-4 max-h-[550px] overflow-y-auto pr-1">
+          <!-- จะถูกเรนเดอร์โดยฟังก์ชัน renderEmployees() -->
+        </div>
+      </div>
+      <div class="bg-white p-6 rounded-xl shadow space-y-4">
+        <h2 class="font-bold border-b pb-2 text-emerald-700">รายการของรางวัล</h2>
+        <table class="w-full text-sm"><tbody id="prizeTable" class="divide-y divide-gray-100"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ส่วนแสดงประวัติผู้ได้รับรางวัลทั้งหมด (Winners List) -->
+    <div class="bg-white p-6 rounded-2xl shadow-xl space-y-4 border-t-4 border-amber-500">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-3">
+        <div>
+          <h2 class="text-xl font-bold text-amber-600 flex items-center gap-2">
+            <span>🏆</span> ประวัติผู้ได้รับรางวัลทั้งหมด (<span id="adminWinnersCount">0</span> ท่าน)
+          </h2>
+          <p class="text-xs text-slate-500">ตรวจสอบรายชื่อผู้โชคดีทั้งหมด และสามารถสละสิทธิ์/คืนสิทธิ์ได้</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="exportWinnersCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow flex items-center gap-1.5 transition">
+            📥 ส่งออกผลรางวัล (CSV/Excel)
+          </button>
+          <button onclick="exportEmployeesCSV()" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow flex items-center gap-1.5 transition">
+            📥 ส่งออกรายชื่อพนักงาน (CSV)
+          </button>
+          <button onclick="loadWinnersTable()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-xl text-xs font-bold transition" title="รีเฟรช">
+            🔄
+          </button>
+        </div>
+      </div>
+
+      <!-- ตารางรายชื่อผู้ได้รับรางวัล -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-50 text-slate-700 font-bold border-b">
+            <tr>
+              <th class="py-2.5 px-3">#</th>
+              <th class="py-2.5 px-3">รหัส</th>
+              <th class="py-2.5 px-3">ยศ / ชื่อ-นามสกุล</th>
+              <th class="py-2.5 px-3">สังกัด</th>
+              <th class="py-2.5 px-3">ของรางวัลที่ได้รับ</th>
+              <th class="py-2.5 px-3">เวลาที่ได้รับ</th>
+              <th class="py-2.5 px-3 text-right">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="adminWinnersTableBody" class="divide-y divide-slate-100">
+            <!-- จะถูกเรนเดอร์โดย JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal นำเข้ารายชื่อแบบชุดใหญ่ (Bulk Import Modal) -->
+  <div id="bulkImportModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <span>📋</span> นำเข้ารายชื่อพนักงานแบบชุด
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">วางข้อมูลรายชื่อ 1 บรรทัดต่อ 1 คน</p>
+        </div>
+        <button onclick="closeBulkImportModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-xs font-bold text-slate-700">
+          รูปแบบ: <span class="font-mono text-indigo-600">ยศ, ชื่อ, นามสกุล, สังกัด</span> หรือ <span class="font-mono text-indigo-600">ชื่อ นามสกุล, สังกัด</span>
+        </label>
+        <textarea id="bulkImportText" rows="9" class="w-full border-2 border-slate-200 p-3 rounded-xl focus:border-indigo-500 focus:outline-none text-xs font-mono" placeholder="จ.อ., สมชาย, ใจดี, กองบิน 1
+ร.ท., สมหญิง, มั่นคง, แผนกช่าง
+นาย, วิชัย, ร่ำรวย, แผนกการเงิน"></textarea>
+      </div>
+
+      <div id="bulkImportStatus" class="hidden text-xs p-2.5 rounded-lg font-bold"></div>
+
+      <div class="flex justify-between items-center pt-2 border-t text-xs">
+        <button onclick="closeBulkImportModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold">
+          ยกเลิก
+        </button>
+        <button onclick="submitBulkImport()" id="btnSubmitBulk" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl font-bold shadow">
+          🚀 นำเข้าข้อมูล
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal ยืนยันการล้างผลรางวัลทั้งหมด (Reset Winners Confirmation) -->
+  <div id="resetConfirmModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 text-center">
+      <div class="text-4xl text-rose-500">⚠️</div>
+      <h3 class="text-xl font-black text-slate-800">ยืนยันการล้างผลรางวัลทั้งหมด?</h3>
+      <p class="text-xs text-slate-600 leading-relaxed">
+        ระบบจะทำการ:
+        <br>1. ลบประวัติผู้ได้รับรางวัลทั้งหมดในตาราง
+        <br>2. คืนยอดของรางวัลทุกชิ้นกลับมาเต็มจำนวน
+        <br>3. คืนสิทธิ์พนักงานทุกคนกลับเป็นผู้มีสิทธิ์ลุ้นรางวัล (Eligible)
+      </p>
+      <div class="pt-2 flex gap-2">
+        <button onclick="closeResetWinnersModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 py-2.5 rounded-xl font-bold text-xs">
+          ยกเลิก
+        </button>
+        <button onclick="confirmResetWinners()" id="btnConfirmReset" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-xl font-bold text-xs shadow">
+          ⚠️ ยืนยันล้างผลรางวัล
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal จัดการยศ (เพิ่ม/ลบ/แก้ไข/ลากจัดลำดับ) -->
+  <div id="rankModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <span>🎖️</span> จัดการรายการยศ / คำนำหน้า
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">คลิกลากไอคอน <span class="text-amber-600 font-bold">⋮⋮</span> เพื่อจัดลำดับยศ หรือกดปุ่ม ⬆️ ⬇️</p>
+        </div>
+        <button onclick="closeRankModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold leading-none">&times;</button>
+      </div>
+
+      <!-- ฟอร์มเพิ่มยศใหม่ -->
+      <form id="addRankForm" class="flex gap-2">
+        <input type="text" id="newRankName" placeholder="ชื่อยศใหม่ เช่น พ.อ.อ., ร.ต., นาย" class="flex-1 border p-2 rounded-lg focus:outline-blue-500 text-sm" required autocomplete="off">
+        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">
+          ➕ เพิ่มยศ
+        </button>
+      </form>
+
+      <!-- แถบแจ้งเตือนสถานะการบันทึกลำดับ -->
+      <div id="reorderStatusAlert" class="hidden text-xs bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg flex items-center justify-between font-bold transition">
+        <span>✓ บันทึกลำดับยศและอัปเดตรายชื่อแล้ว</span>
+      </div>
+
+      <!-- รายการยศ (รองรับ Drag and Drop) -->
+      <div class="flex-1 overflow-y-auto border rounded-xl divide-y divide-slate-100 max-h-72">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10 shadow-sm text-xs">
+            <tr>
+              <th class="text-center py-2 px-2 w-14">ลำดับ</th>
+              <th class="text-left py-2 px-3">ชื่อยศ / คำนำหน้า</th>
+              <th class="text-center py-2 px-2 w-20">เลื่อน</th>
+              <th class="text-right py-2 px-3 w-28">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="rankListBody" class="divide-y divide-slate-100">
+            <!-- ข้อมูลยศจะถูกโหลดมาแสดงที่นี่ -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex justify-between items-center pt-2 border-t text-xs text-slate-400">
+        <span>* ลำดับยศจะมีผลต่อการเรียงรายชื่อพนักงาน</span>
+        <button onclick="closeRankModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-5 py-2 rounded-xl font-bold text-sm">
+          ปิด
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ตรวจสอบ Origin อัตโนมัติ: หากเปิดผ่าน file:// หรือไม่มี Origin ให้ชี้ไปที่ http://localhost:3000 อัตโนมัติ
+    const isFile = window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null';
+    const DEFAULT_PORT = 3000;
+    const SERVER_ORIGIN = isFile ? `http://localhost:${DEFAULT_PORT}` : window.location.origin;
+    const API = `${SERVER_ORIGIN}/api`;
+    let serverPort = DEFAULT_PORT;
+    let registeredUrl = '';
+
+    // แสดงแถบเตือนหากเปิดผ่าน file://
+    if (isFile) {
+      const banner = document.getElementById('fileProtocolBanner');
+      if (banner) banner.classList.remove('hidden');
+    }
+
+    // ฟังก์ชันเปิดหน้าอื่นอย่างปลอดภัย ไม่ว่าเปิดจาก file:// หรือ http://
+    function openPage(page, e) {
+      if (e) e.preventDefault();
+      const targetUrl = isFile ? `http://localhost:${serverPort || DEFAULT_PORT}/${page}` : `/${page}`;
+      window.open(targetUrl, '_blank');
+    }
+
+    // ฟังก์ชันควบคุมแถบเตือนการเชื่อมต่อเซิร์ฟเวอร์
+    function showConnectionError() {
+      const alertEl = document.getElementById('serverConnectionAlert');
+      if (alertEl) alertEl.classList.remove('hidden');
+    }
+
+    function hideConnectionError() {
+      const alertEl = document.getElementById('serverConnectionAlert');
+      if (alertEl) alertEl.classList.add('hidden');
+    }
+
+    // ระบบแจ้งเตือนลอย (Toast Notification)
+    function showToast(message, type = 'success') {
+      let toast = document.getElementById('globalToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'globalToast';
+        toast.className = 'fixed bottom-6 right-6 z-50 transition-all duration-300 transform translate-y-20 opacity-0 pointer-events-none';
+        document.body.appendChild(toast);
+      }
+      const isSuccess = type === 'success';
+      toast.innerHTML = `
+        <div class="px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 font-bold text-xs sm:text-sm border ${
+          isSuccess ? 'bg-slate-900/95 border-emerald-500/60 text-emerald-300' : 'bg-rose-950/95 border-rose-500/60 text-rose-200'
+        }">
+          <span class="text-xl">${isSuccess ? '✅' : '❌'}</span>
+          <span>${message}</span>
+        </div>
+      `;
+      toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+      }, 3000);
+    }
+
+    // ระบบตรวจหา IP และสร้าง QR Code อัตโนมัติ
+    async function initServerInfoAndQr() {
+      try {
+        const res = await fetch(`${API}/server-info`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        serverPort = data.port || DEFAULT_PORT;
+
+        const select = document.getElementById('lanIpSelect');
+        select.innerHTML = '';
+        
+        if (data.addresses && data.addresses.length > 0) {
+          data.addresses.forEach(addr => {
+            const opt = document.createElement('option');
+            opt.value = addr.address;
+            opt.textContent = `${addr.address} (${addr.iface})`;
+            select.appendChild(opt);
+          });
+          document.getElementById('serverIp').value = data.defaultIp || data.addresses[0].address;
+        } else {
+          document.getElementById('serverIp').value = isFile ? 'localhost' : (window.location.hostname || 'localhost');
+        }
+        hideConnectionError();
+      } catch (err) {
+        console.warn("Cannot fetch server-info:", err);
+        document.getElementById('serverIp').value = isFile ? 'localhost' : (window.location.hostname || 'localhost');
+        showConnectionError();
+      }
+      generateQRCode();
+    }
+
+    function onIpSelectChange() {
+      const select = document.getElementById('lanIpSelect');
+      if (select.value) {
+        document.getElementById('serverIp').value = select.value;
+        generateQRCode();
+      }
+    }
+
+    function generateQRCode() {
+      let host = document.getElementById('serverIp').value.trim();
+      if (!host || host === '0.0.0.0') {
+        host = isFile ? 'localhost' : (window.location.hostname || 'localhost');
+      }
+      const portPart = serverPort ? `:${serverPort}` : '';
+      registeredUrl = `http://${host}${portPart}/register.html`;
+
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = "";
+      new QRCode(qrContainer, {
+        text: registeredUrl,
+        width: 140,
+        height: 140,
+        colorDark: "#020617",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      const qrLink = document.getElementById('qrLink');
+      qrLink.href = registeredUrl;
+      qrLink.textContent = registeredUrl;
+    }
+
+    function copyQrLink() {
+      if (!registeredUrl) return;
+      navigator.clipboard.writeText(registeredUrl).then(() => {
+        const span = document.getElementById('copyAdminQrText');
+        span.textContent = "✅ คัดลอกแล้ว!";
+        setTimeout(() => { span.textContent = "📋 คัดลอกลิงก์"; }, 2000);
+      }).catch(() => {
+        prompt("คัดลอกลิงก์:", registeredUrl);
+      });
+    }
+
+    function downloadQRCode() {
+      const qrCanvas = document.querySelector('#qrcode canvas');
+      const qrImg = document.querySelector('#qrcode img');
+      let dataUrl = null;
+      if (qrCanvas) {
+        dataUrl = qrCanvas.toDataURL("image/png");
+      } else if (qrImg && qrImg.src) {
+        dataUrl = qrImg.src;
+      }
+      if (!dataUrl) {
+        alert("ยังไม่มีรูป QR Code ให้ดาวน์โหลด");
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `lucky-draw-qr-${document.getElementById('serverIp').value || 'register'}.png`;
+      a.click();
+    }
+
+    // ฟังก์ชันเปิด/ปิด Modal จัดการยศ
+    function openRankModal() {
+      document.getElementById('rankModal').classList.remove('hidden');
+      loadRanks();
+      document.getElementById('newRankName').focus();
+    }
+    function closeRankModal() {
+      document.getElementById('rankModal').classList.add('hidden');
+    }
+
+    // โหลดรายชื่อยศมาใส่ทั้งใน Dropdown และตารางจัดการ
+    let currentRanks = [];
+    async function loadRanks() {
+      try {
+        const res = await fetch(`${API}/ranks`);
+        currentRanks = await res.json();
+
+        updateRankSelect();
+        renderRankTable();
+      } catch (err) {
+        console.error("Error loading ranks:", err);
+      }
+    }
+
+    // อัปเดต Dropdown เลือกยศในฟอร์มเพิ่มพนักงาน
+    function updateRankSelect() {
+      const select = document.getElementById('empRankSelect');
+      const selectedVal = select.value;
+      select.innerHTML = '<option value="">-- เลือกยศ / คำนำหน้า --</option>' + 
+        currentRanks.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+      if (selectedVal) select.value = selectedVal;
+    }
+
+    // เรนเดอร์ตารางจัดการยศ พร้อม Drag and Drop และปุ่มเลื่อนขึ้น/ลง
+    function renderRankTable() {
+      const tbody = document.getElementById('rankListBody');
+      if (currentRanks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-400">ยังไม่มีข้อมูลยศ</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = currentRanks.map((r, idx) => `
+        <tr class="rank-row hover:bg-amber-50/60 transition cursor-grab active:cursor-grabbing select-none"
+            draggable="true"
+            data-id="${r.id}"
+            data-index="${idx}">
+          <td class="py-2 px-2 text-center text-slate-400 font-mono text-xs">
+            <div class="flex items-center justify-center gap-1">
+              <span class="text-slate-400 hover:text-amber-600 text-base leading-none font-bold" title="คลิกลากเพื่อจัดลำดับ">⋮⋮</span>
+              <span>${idx + 1}</span>
+            </div>
+          </td>
+          <td class="py-2 px-3 font-semibold text-slate-800">
+            <span class="bg-slate-100 text-slate-800 border border-slate-200 text-xs px-2 py-0.5 rounded font-bold">${r.name}</span>
+          </td>
+          <td class="text-center py-2 px-2 whitespace-nowrap">
+            <button type="button" onclick="moveRank(${idx}, -1)" ${idx === 0 ? 'disabled class="opacity-20 cursor-not-allowed"' : 'class="hover:bg-slate-200 text-slate-700"'} class="px-1.5 py-0.5 rounded text-xs font-bold transition" title="เลื่อนขึ้น">⬆️</button>
+            <button type="button" onclick="moveRank(${idx}, 1)" ${idx === currentRanks.length - 1 ? 'disabled class="opacity-20 cursor-not-allowed"' : 'class="hover:bg-slate-200 text-slate-700"'} class="px-1.5 py-0.5 rounded text-xs font-bold transition" title="เลื่อนลง">⬇️</button>
+          </td>
+          <td class="text-right py-2 px-3 space-x-1 whitespace-nowrap">
+            <button type="button" onclick="editRank(${r.id}, '${r.name}')" class="text-blue-600 hover:text-blue-800 font-bold text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded transition">✏️</button>
+            <button type="button" onclick="deleteRank(${r.id}, '${r.name}')" class="text-red-500 hover:text-red-700 font-bold text-xs bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded transition">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+
+      setupRankDragAndDrop();
+    }
+
+    // ฟังก์ชันเลื่อนตำแหน่งขึ้นหรือลงด้วยปุ่มลูกศร
+    async function moveRank(index, direction) {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= currentRanks.length) return;
+      const item = currentRanks.splice(index, 1)[0];
+      currentRanks.splice(targetIndex, 0, item);
+      await saveRankOrder();
+    }
+
+    // Drag and Drop Logic
+    let draggedRankId = null;
+    function setupRankDragAndDrop() {
+      const tbody = document.getElementById('rankListBody');
+      const rows = tbody.querySelectorAll('.rank-row');
+
+      rows.forEach(row => {
+        row.addEventListener('dragstart', (e) => {
+          draggedRankId = row.getAttribute('data-id');
+          row.classList.add('bg-amber-100', 'opacity-60');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', draggedRankId);
+        });
+
+        row.addEventListener('dragend', () => {
+          row.classList.remove('bg-amber-100', 'opacity-60');
+          rows.forEach(r => r.classList.remove('border-t-2', 'border-b-2', 'border-amber-500'));
+        });
+
+        row.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (row.getAttribute('data-id') !== draggedRankId) {
+            const rect = row.getBoundingClientRect();
+            const isAfter = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+            rows.forEach(r => r.classList.remove('border-t-2', 'border-b-2', 'border-amber-500'));
+            if (isAfter) {
+              row.classList.add('border-b-2', 'border-amber-500');
+            } else {
+              row.classList.add('border-t-2', 'border-amber-500');
+            }
+          }
+        });
+
+        row.addEventListener('dragleave', () => {
+          row.classList.remove('border-t-2', 'border-b-2', 'border-amber-500');
+        });
+
+        row.addEventListener('drop', async (e) => {
+          e.preventDefault();
+          row.classList.remove('border-t-2', 'border-b-2', 'border-amber-500');
+          const targetRankId = row.getAttribute('data-id');
+          if (!draggedRankId || draggedRankId === targetRankId) return;
+
+          const rect = row.getBoundingClientRect();
+          const isAfter = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+
+          const fromIndex = currentRanks.findIndex(r => r.id == draggedRankId);
+          if (fromIndex === -1) return;
+          const [movedItem] = currentRanks.splice(fromIndex, 1);
+
+          let toIndex = currentRanks.findIndex(r => r.id == targetRankId);
+          if (isAfter) toIndex++;
+          currentRanks.splice(toIndex, 0, movedItem);
+
+          await saveRankOrder();
+        });
+      });
+    }
+
+    // บันทึกลำดับยศใหม่ไปยังเซิร์ฟเวอร์
+    async function saveRankOrder() {
+      renderRankTable();
+      updateRankSelect();
+      const orderedIds = currentRanks.map(r => r.id);
+
+      try {
+        const res = await fetch(`${API}/ranks/reorder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderedIds })
+        });
+        if (res.ok) {
+          showReorderAlert();
+          // รีเฟรชรายชื่อพนักงาน เพื่อให้เรียงลำดับตามยศที่จัดใหม่ทันที
+          loadEmployeesOnly();
+        }
+      } catch (err) {
+        console.error('Error saving rank order:', err);
+      }
+    }
+
+    function showReorderAlert() {
+      const alertEl = document.getElementById('reorderStatusAlert');
+      if (alertEl) {
+        alertEl.classList.remove('hidden');
+        clearTimeout(alertEl._timeout);
+        alertEl._timeout = setTimeout(() => alertEl.classList.add('hidden'), 2500);
+      }
+    }
+
+    // โหลดเฉพาะรายชื่อพนักงาน (ใช้เวลามีการเปลี่ยนลำดับยศ)
+    async function loadEmployeesOnly() {
+      try {
+        const res = await fetch(`${API}/employees`);
+        allEmployees = await res.json();
+        renderEmployees();
+      } catch (err) {
+        console.error('Error loading employees:', err);
+      }
+    }
+
+    // เพิ่มยศใหม่
+    document.getElementById('addRankForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('newRankName');
+      const name = input.value.trim();
+      if (!name) return;
+
+      const res = await fetch(`${API}/ranks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+
+      if (res.ok) {
+        input.value = '';
+        loadRanks();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'เกิดข้อผิดพลาดในการบันทึก');
+      }
+    };
+
+    // แก้ไขยศ
+    async function editRank(id, oldName) {
+      const newName = prompt('แก้ไขชื่อยศ / คำนำหน้า:', oldName);
+      if (newName === null) return;
+      const trimmed = newName.trim();
+      if (!trimmed || trimmed === oldName) return;
+
+      const res = await fetch(`${API}/ranks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed })
+      });
+
+      if (res.ok) {
+        loadRanks();
+        loadEmployeesOnly();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'เกิดข้อผิดพลาดในการแก้ไข');
+      }
+    }
+
+    // ลบยศ
+    async function deleteRank(id, name) {
+      if (confirm(`คุณต้องการลบยศ "${name}" ใช่หรือไม่?`)) {
+        await fetch(`${API}/ranks/${id}`, { method: 'DELETE' });
+        loadRanks();
+        loadEmployeesOnly();
+      }
+    }
+
+    // กรองและบล็อกการเคาะเว้นวรรคและอักขระพิเศษสำหรับช่องชื่อ-นามสกุล
+    const cleanInput = (e) => {
+      const cleaned = e.target.value.replace(/[^a-zA-Z\u0E00-\u0E7F]/g, '');
+      if (e.target.value !== cleaned) {
+        e.target.value = cleaned;
+      }
+    };
+    const blockSpaces = (e) => {
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+      }
+    };
+
+    const empFirstName = document.getElementById('empFirstName');
+    const empLastName = document.getElementById('empLastName');
+    const empDeptSelect = document.getElementById('empDeptSelect');
+    const filterDeptSelect = document.getElementById('filterDeptSelect');
+
+    empFirstName.addEventListener('keydown', blockSpaces);
+    empFirstName.addEventListener('input', cleanInput);
+    empLastName.addEventListener('keydown', blockSpaces);
+    empLastName.addEventListener('input', cleanInput);
+
+    // เมื่อเลือกสังกัดในฟอร์มลงทะเบียน ให้สลับตัวกรองเพื่อดูรายชื่อสังกัดนั้นทันที
+    empDeptSelect.addEventListener('change', () => {
+      if (empDeptSelect.value) {
+        filterDeptSelect.value = empDeptSelect.value;
+        renderEmployees();
+      }
+    });
+
+    let allEmployees = [];
+
+    // ฟังก์ชันแสดงผลรายชื่อพนักงานแยกตามสังกัด
+    function renderEmployees() {
+      const filter = filterDeptSelect.value;
+      const container = document.getElementById('empContainer');
+      document.getElementById('totalEmpCount').textContent = allEmployees.length;
+
+      if (allEmployees.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">ยังไม่มีรายชื่อลงทะเบียนในระบบ</div>`;
+        return;
+      }
+
+      // จัดกลุ่มพนักงานตามสังกัด
+      const groups = {};
+      allEmployees.forEach(e => {
+        const dept = e.department || 'ไม่ระบุสังกัด';
+        if (!groups[dept]) groups[dept] = [];
+        groups[dept].push(e);
+      });
+
+      let html = '';
+
+      // กรณีเลือกเฉพาะสังกัดใดสังกัดหนึ่ง
+      if (filter !== 'all') {
+        const emps = groups[filter] || [];
+        html += `
+          <div class="border-2 border-blue-300 rounded-xl p-3.5 bg-blue-50/50 space-y-3 shadow-sm">
+            <div class="flex justify-between items-center border-b border-blue-200 pb-2">
+              <span class="font-bold text-blue-900 text-sm flex items-center gap-1.5">
+                🏢 สังกัด: ${filter}
+              </span>
+              <div class="flex items-center gap-2">
+                <span class="bg-blue-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">${emps.length} คน</span>
+                <button type="button" onclick="filterDeptSelect.value='all'; renderEmployees();" class="text-xs text-blue-600 font-bold hover:underline">
+                  ดูทุกสังกัด
+                </button>
+              </div>
+            </div>
+            ${emps.length === 0 ? '<p class="text-xs text-slate-400 py-4 text-center">ยังไม่มีพนักงานลงทะเบียนในสังกัดนี้</p>' : `
+              <table class="w-full text-xs">
+                <tbody class="divide-y divide-blue-100">
+                  ${emps.map((e, idx) => `
+                    <tr class="hover:bg-blue-100/60 transition">
+                      <td class="py-2 pr-2">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                          <span class="text-[10px] text-slate-400 font-bold">#${idx + 1}</span>
+                          <span class="font-mono font-bold text-slate-500 text-xs">${e.emp_code || '-'}</span>
+                          ${e.rank ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[11px] px-1.5 py-0.5 rounded font-bold leading-none">${e.rank}</span>` : ''}
+                          ${e.status === 'won' ? '<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold">🏆 ได้รางวัลแล้ว</span>' : ''}
+                        </div>
+                        <div class="font-bold text-slate-800 text-sm mt-0.5">
+                          ${e.first_name ? `${e.first_name} ${e.last_name || ''}` : e.name}
+                        </div>
+                      </td>
+                      <td class="text-right py-2 pl-2 whitespace-nowrap">
+                        <button type="button" onclick="deleteData('/employees/${e.id}')" class="text-red-500 hover:text-red-700 font-bold bg-white hover:bg-red-50 border border-red-200 px-2.5 py-1 rounded shadow-sm text-xs">ลบ</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `}
+          </div>
+        `;
+      } else {
+        // แสดงแยกเป็นแต่ละสังกัด ใครสังกัดมัน
+        const deptNames = Object.keys(groups);
+        deptNames.forEach(dept => {
+          const emps = groups[dept];
+          html += `
+            <div class="border border-slate-200 rounded-xl p-3 bg-slate-50/80 space-y-2.5 shadow-sm">
+              <div class="flex justify-between items-center border-b border-slate-200 pb-1.5">
+                <button type="button" onclick="filterDeptSelect.value='${dept}'; renderEmployees();" class="font-bold text-slate-800 text-xs flex items-center gap-1 hover:text-blue-600 transition text-left">
+                  🏢 ${dept}
+                </button>
+                <span class="bg-slate-200 text-slate-700 text-[11px] font-bold px-2 py-0.5 rounded-full">${emps.length} คน</span>
+              </div>
+              <table class="w-full text-xs">
+                <tbody class="divide-y divide-slate-200">
+                  ${emps.map((e, idx) => `
+                    <tr class="hover:bg-white transition">
+                      <td class="py-1.5 pr-2">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                          <span class="text-[10px] text-slate-400 font-bold">#${idx + 1}</span>
+                          <span class="font-mono font-bold text-slate-500 text-xs">${e.emp_code || '-'}</span>
+                          ${e.rank ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] px-1.5 py-0.5 rounded font-bold leading-none">${e.rank}</span>` : ''}
+                          ${e.status === 'won' ? '<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold">🏆 ได้รางวัลแล้ว</span>' : ''}
+                        </div>
+                        <div class="font-medium text-slate-800 text-xs mt-0.5">
+                          ${e.first_name ? `${e.first_name} ${e.last_name || ''}` : e.name}
+                        </div>
+                      </td>
+                      <td class="text-right py-1.5 pl-2 whitespace-nowrap">
+                        <button type="button" onclick="deleteData('/employees/${e.id}')" class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 rounded hover:bg-red-50 text-xs">ลบ</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        });
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ระบบโหลดข้อมูลมาแสดงผล
+    async function loadData() {
+      try {
+        loadRanks();
+
+        // โหลดสังกัด
+        const deptsRes = await fetch(`${API}/departments`);
+        if (!deptsRes.ok) throw new Error("Cannot fetch departments");
+        const depts = await deptsRes.json();
+        
+        const deptTable = document.getElementById('deptTable');
+        if (deptTable) {
+          deptTable.innerHTML = depts.length === 0
+            ? '<tr><td colspan="2" class="text-center py-4 text-slate-400 text-xs">ยังไม่มีข้อมูลสังกัด</td></tr>'
+            : depts.map(d => `<tr><td class="py-2 font-medium text-slate-800">${d.name}</td><td class="text-right py-2"><button onclick="deleteData('/departments/${d.id}')" class="text-red-500 hover:text-red-700 font-bold text-xs bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition">ลบ</button></td></tr>`).join('');
+        }
+        
+        // ใส่ใน dropdown ฟอร์มลงทะเบียน
+        const prevDept = empDeptSelect.value;
+        empDeptSelect.innerHTML = '<option value="">-- เลือกสังกัด --</option>' + depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+        if (prevDept) empDeptSelect.value = prevDept;
+
+        // ใส่ใน dropdown ฟิลเตอร์แยกสังกัด
+        const prevFilter = filterDeptSelect.value;
+        filterDeptSelect.innerHTML = '<option value="all">🏢 แสดงทุกสังกัด (แยกรายสังกัด)</option>' + 
+          depts.map(d => `<option value="${d.name}">🏢 ${d.name}</option>`).join('');
+        if (prevFilter) filterDeptSelect.value = prevFilter;
+
+        // โหลดพนักงาน
+        const empsRes = await fetch(`${API}/employees`);
+        if (!empsRes.ok) throw new Error("Cannot fetch employees");
+        allEmployees = await empsRes.json();
+        renderEmployees();
+
+        // โหลดรางวัล
+        const prizesRes = await fetch(`${API}/admin/prizes`);
+        if (!prizesRes.ok) throw new Error("Cannot fetch prizes");
+        const prizes = await prizesRes.json();
+        const prizeTable = document.getElementById('prizeTable');
+        if (prizeTable) {
+          prizeTable.innerHTML = prizes.length === 0
+            ? '<tr><td colspan="2" class="text-center py-4 text-slate-400 text-xs">ยังไม่มีข้อมูลของรางวัล</td></tr>'
+            : prizes.map(p => `<tr><td class="py-2 font-medium text-slate-800">${p.name} <br><span class="text-xs text-slate-500">เหลือ ${p.remaining_amount}/${p.total_amount}</span></td><td class="text-right py-2"><button onclick="deleteData('/prizes/${p.id}')" class="text-red-500 hover:text-red-700 font-bold text-xs bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition">ลบ</button></td></tr>`).join('');
+        }
+
+        // อัปเดตสถิติภาพรวม
+        const totalEmp = allEmployees.length;
+        const wonEmp = allEmployees.filter(e => e.status === 'won').length;
+        const eligibleEmp = allEmployees.filter(e => e.status === 'eligible').length;
+        const totalPrizes = prizes.reduce((sum, p) => sum + (p.total_amount || 0), 0);
+        const remPrizes = prizes.reduce((sum, p) => sum + (p.remaining_amount || 0), 0);
+
+        const statTotal = document.getElementById('statTotalEmp');
+        if (statTotal) statTotal.textContent = `${totalEmp} คน`;
+        const statElig = document.getElementById('statEligibleEmp');
+        if (statElig) statElig.textContent = `${eligibleEmp} คน`;
+        const statWon = document.getElementById('statWonEmp');
+        if (statWon) statWon.textContent = `${wonEmp} คน`;
+        const statPriz = document.getElementById('statPrizes');
+        if (statPriz) statPriz.textContent = `${remPrizes} / ${totalPrizes}`;
+
+        // โหลดตารางผู้ได้รับรางวัล
+        loadWinnersTable();
+        hideConnectionError();
+      } catch (error) {
+        console.error("Error loading data:", error);
+        showConnectionError();
+      }
+    }
+
+    let allAdminWinners = [];
+
+    // โหลดตารางผู้ได้รับรางวัล
+    async function loadWinnersTable() {
+      try {
+        const res = await fetch(`${API}/winners`);
+        allAdminWinners = await res.json();
+        
+        const countEl = document.getElementById('adminWinnersCount');
+        if (countEl) countEl.textContent = allAdminWinners.length;
+
+        const tbody = document.getElementById('adminWinnersTableBody');
+        if (allAdminWinners.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">ยังไม่มีประวัติการได้รับรางวัล</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = allAdminWinners.map((w, idx) => {
+          const time = new Date(w.won_at).toLocaleString('th-TH');
+          const displayName = w.first_name ? `${w.first_name} ${w.last_name || ''}`.trim() : (w.employee_name || w.name);
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-2.5 px-3 font-mono text-slate-400">#${idx + 1}</td>
+              <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${w.emp_code || '-'}</td>
+              <td class="py-2.5 px-3">
+                <span class="font-bold text-slate-800">${w.rank ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] px-1.5 py-0.5 rounded font-bold mr-1">${w.rank}</span>` : ''}${displayName}</span>
+              </td>
+              <td class="py-2.5 px-3 text-slate-600 font-medium">${w.department || '-'}</td>
+              <td class="py-2.5 px-3">
+                <span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-200">🎁 ${w.prize_name}</span>
+              </td>
+              <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">${time}</td>
+              <td class="py-2.5 px-3 text-right space-x-1 whitespace-nowrap">
+                <button type="button" onclick="cancelWinnerFromAdmin(${w.id}, '${displayName}', 'absent')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-lg font-bold transition">
+                  สละสิทธิ์
+                </button>
+                <button type="button" onclick="cancelWinnerFromAdmin(${w.id}, '${displayName}', 'eligible')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-lg font-bold transition">
+                  คืนสิทธิ์
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error("Load winners table error:", err);
+      }
+    }
+
+    // ยกเลิกผลรางวัลจาก Admin
+    async function cancelWinnerFromAdmin(winnerId, name, newStatus) {
+      const actionText = newStatus === 'absent' ? 'สละสิทธิ์ (ไม่อยู่ในงาน)' : 'โมฆะ / คืนสิทธิ์ให้พนักงาน';
+      if (!confirm(`ยืนยันการ${actionText}สำหรับ "${name}" ใช่หรือไม่?\n(ของรางวัลจะถูกส่งคืนระบบ +1)`)) return;
+
+      try {
+        const res = await fetch(`${API}/winners/${winnerId}/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ new_status: newStatus })
+        });
+        if (res.ok) {
+          loadData();
+        } else {
+          alert('เกิดข้อผิดพลาดในการยกเลิกรางวัล');
+        }
+      } catch (err) {
+        alert('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    }
+
+    // Export รายชื่อผู้ได้รับรางวัลเป็น CSV (UTF-8 with BOM for Excel)
+    function exportWinnersCSV() {
+      if (!allAdminWinners || allAdminWinners.length === 0) {
+        alert('ยังไม่มีข้อมูลผู้ได้รับรางวัลให้ส่งออก');
+        return;
+      }
+      const headers = ['ลำดับ', 'รหัสประจำตัว', 'ยศ', 'ชื่อ', 'นามสกุล', 'ชื่อเต็ม', 'สังกัด', 'ของรางวัล', 'วันเวลาที่ได้รับ'];
+      const rows = allAdminWinners.map((w, idx) => [
+        idx + 1,
+        `"${w.emp_code || ''}"`,
+        `"${w.rank || ''}"`,
+        `"${w.first_name || ''}"`,
+        `"${w.last_name || ''}"`,
+        `"${w.first_name ? `${w.rank ? w.rank + ' ' : ''}${w.first_name} ${w.last_name || ''}`.trim() : (w.employee_name || '')}"`,
+        `"${w.department || ''}"`,
+        `"${w.prize_name || ''}"`,
+        `"${new Date(w.won_at).toLocaleString('th-TH')}"`
+      ]);
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `lucky-draw-winners-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Export รายชื่อพนักงานทั้งหมดเป็น CSV
+    function exportEmployeesCSV() {
+      if (!allEmployees || allEmployees.length === 0) {
+        alert('ยังไม่มีข้อมูลพนักงานให้ส่งออก');
+        return;
+      }
+      const headers = ['ลำดับ', 'รหัสประจำตัว', 'ยศ', 'ชื่อ', 'นามสกุล', 'ชื่อเต็ม', 'สังกัด', 'สถานะ'];
+      const rows = allEmployees.map((e, idx) => [
+        idx + 1,
+        `"${e.emp_code || ''}"`,
+        `"${e.rank || ''}"`,
+        `"${e.first_name || ''}"`,
+        `"${e.last_name || ''}"`,
+        `"${e.first_name ? `${e.rank ? e.rank + ' ' : ''}${e.first_name} ${e.last_name || ''}`.trim() : (e.name || '')}"`,
+        `"${e.department || ''}"`,
+        `"${e.status === 'won' ? 'ได้รับรางวัลแล้ว' : (e.status === 'absent' ? 'สละสิทธิ์' : 'มีสิทธิ์ลุ้น')}"`
+      ]);
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `lucky-draw-employees-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Bulk Import Modal Logic
+    function openBulkImportModal() {
+      document.getElementById('bulkImportText').value = '';
+      const statusBox = document.getElementById('bulkImportStatus');
+      statusBox.classList.add('hidden');
+      document.getElementById('bulkImportModal').classList.remove('hidden');
+    }
+
+    function closeBulkImportModal() {
+      document.getElementById('bulkImportModal').classList.add('hidden');
+    }
+
+    async function submitBulkImport() {
+      const text = document.getElementById('bulkImportText').value.trim();
+      const statusBox = document.getElementById('bulkImportStatus');
+      if (!text) {
+        alert('กรุณากรอกหรือวางข้อมูลรายชื่อพนักงาน');
+        return;
+      }
+
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const employees = [];
+
+      lines.forEach(line => {
+        let parts = line.includes(',') ? line.split(',') : line.split('\t');
+        parts = parts.map(p => p.trim());
+
+        if (parts.length >= 4) {
+          employees.push({ rank: parts[0], first_name: parts[1], last_name: parts[2], department: parts[3] });
+        } else if (parts.length === 3) {
+          employees.push({ first_name: parts[0], last_name: parts[1], department: parts[2] });
+        } else if (parts.length === 2) {
+          const nameParts = parts[0].split(' ').filter(Boolean);
+          if (nameParts.length >= 2) {
+            employees.push({ first_name: nameParts[0], last_name: nameParts.slice(1).join(' '), department: parts[1] });
+          } else {
+            employees.push({ name: parts[0], department: parts[1] });
+          }
+        } else {
+          employees.push({ name: parts[0], department: 'ทั่วไป' });
+        }
+      });
+
+      if (employees.length === 0) {
+        alert('ไม่พบข้อมูลรายชื่อที่ถูกต้อง');
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitBulk');
+      btn.disabled = true;
+      btn.textContent = 'กำลังนำเข้า...';
+
+      try {
+        const res = await fetch(`${API}/admin/bulk-employees`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employees })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          statusBox.className = "text-xs p-2.5 rounded-lg font-bold bg-emerald-50 text-emerald-800 border border-emerald-300";
+          statusBox.textContent = `✅ ${data.message}`;
+          statusBox.classList.remove('hidden');
+          loadData();
+          setTimeout(() => { closeBulkImportModal(); }, 1800);
+        } else {
+          statusBox.className = "text-xs p-2.5 rounded-lg font-bold bg-rose-50 text-rose-800 border border-rose-300";
+          statusBox.textContent = `❌ ${data.error || 'เกิดข้อผิดพลาด'}`;
+          statusBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        alert('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🚀 นำเข้าข้อมูล';
+      }
+    }
+
+    // Reset Winners Modal Logic
+    function openResetWinnersModal() {
+      document.getElementById('resetConfirmModal').classList.remove('hidden');
+    }
+
+    function closeResetWinnersModal() {
+      document.getElementById('resetConfirmModal').classList.add('hidden');
+    }
+
+    async function confirmResetWinners() {
+      const btn = document.getElementById('btnConfirmReset');
+      btn.disabled = true;
+      btn.textContent = 'กำลังรีเซ็ต...';
+
+      try {
+        const res = await fetch(`${API}/admin/reset-winners`, { method: 'POST' });
+        const data = await res.json();
+
+        if (res.ok) {
+          alert('✅ ล้างผลรางวัลทั้งหมดเรียบร้อยแล้ว ของรางวัลถูกคืนเต็มจำนวน และพนักงานทุกคนพร้อมลุ้นรางวัลใหม่');
+          closeResetWinnersModal();
+          loadData();
+        } else {
+          alert('❌ ' + (data.error || 'เกิดข้อผิดพลาดในการรีเซ็ต'));
+        }
+      } catch (err) {
+        alert('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚠️ ยืนยันล้างผลรางวัล';
+      }
+    }
+
+    // ฟังก์ชันลบข้อมูล
+    async function deleteData(endpoint) {
+      if (!confirm('ต้องการลบข้อมูลนี้ใช่หรือไม่?')) return;
+      try {
+        const res = await fetch(API + endpoint, { method: 'DELETE' });
+        if (res.ok) {
+          showToast('ลบข้อมูลเรียบร้อยแล้ว', 'success');
+          loadData();
+        } else {
+          alert('เกิดข้อผิดพลาดในการลบข้อมูล');
+        }
+      } catch (err) {
+        alert('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    }
+
+    // เวลากดเพิ่มสังกัด
+    document.getElementById('deptForm').onsubmit = async (e) => { 
+      e.preventDefault(); 
+      const nameInput = document.getElementById('deptName');
+      const name = nameInput.value.trim();
+      if (!name) return;
+
+      try {
+        const res = await fetch(`${API}/departments`, { 
+          method: 'POST', 
+          headers: {'Content-Type':'application/json'}, 
+          body: JSON.stringify({ name }) 
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`บันทึกสังกัด "${name}" เรียบร้อยแล้ว`, 'success');
+          nameInput.value = '';
+          loadData(); 
+        } else {
+          alert('❌ ' + (data.error || 'เกิดข้อผิดพลาดในการบันทึกสังกัด'));
+        }
+      } catch (err) {
+        alert('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+      }
+    };
+
+    // เวลากดเพิ่มพนักงาน
+    document.getElementById('empForm').onsubmit = async (e) => { 
+      e.preventDefault(); 
+      const rank = document.getElementById('empRankSelect').value;
+      const firstName = empFirstName.value.trim();
+      const lastName = empLastName.value.trim();
+      const department = empDeptSelect.value;
+
+      if (!department) {
+        alert('กรุณาเลือกสังกัด (หากยังไม่มี ให้เพิ่มสังกัดทางซ้ายมือก่อน)');
+        empDeptSelect.focus();
+        return;
+      }
+
+      const nameRegex = /^[a-zA-Z\u0E00-\u0E7F]+$/;
+      if (!nameRegex.test(firstName)) {
+        alert('ชื่อต้องเป็นตัวอักษรเท่านั้น ห้ามเคาะเว้นวรรคหรือใส่อักขระพิเศษ');
+        empFirstName.focus();
+        return;
+      }
+      if (!nameRegex.test(lastName)) {
+        alert('นามสกุลต้องเป็นตัวอักษรเท่านั้น ห้ามเคาะเว้นวรรคหรือใส่อักขระพิเศษ');
+        empLastName.focus();
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/employees`, { 
+          method: 'POST', 
+          headers: {'Content-Type':'application/json'}, 
+          body: JSON.stringify({ 
+            rank,
+            first_name: firstName,
+            last_name: lastName,
+            department
+          }) 
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          alert('❌ ' + (data.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'));
+          return;
+        }
+
+        showToast(`บันทึก ${rank ? rank + ' ' : ''}${firstName} ${lastName} (รหัส: ${data.emp_code}) เรียบร้อยแล้ว`, 'success');
+        empFirstName.value = '';
+        empLastName.value = '';
+        filterDeptSelect.value = department;
+        loadData(); 
+      } catch (err) {
+        alert('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+      }
+    };
+
+    // เวลากดเพิ่มรางวัล
+    document.getElementById('prizeForm').onsubmit = async (e) => { 
+      e.preventDefault(); 
+      const nameInput = document.getElementById('prizeName');
+      const amountInput = document.getElementById('prizeAmount');
+      const name = nameInput.value.trim();
+      const amount = parseInt(amountInput.value, 10);
+      if (!name || isNaN(amount) || amount <= 0) return;
+
+      try {
+        const res = await fetch(`${API}/prizes`, { 
+          method: 'POST', 
+          headers: {'Content-Type':'application/json'}, 
+          body: JSON.stringify({ 
+            name, 
+            total_amount: amount 
+          }) 
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`บันทึกรางวัล "${name}" จำนวน ${amount} ชิ้น เรียบร้อยแล้ว`, 'success');
+          nameInput.value = '';
+          amountInput.value = '';
+          loadData(); 
+        } else {
+          alert('❌ ' + (data.error || 'เกิดข้อผิดพลาดในการบันทึกของรางวัล'));
+        }
+      } catch (err) {
+        alert('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+      }
+    };
+
+    // เริ่มต้นทำงาน: ดึงข้อมูล Server Info และสร้าง QR Code อัตโนมัติ
+    initServerInfoAndQr();
+    loadData();
+  </script>
+</body>
+</html>

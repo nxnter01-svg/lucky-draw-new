@@ -1,0 +1,87 @@
+﻿/* ==========================================================================
+   REGISTER.CSS - ระบบลงทะเบียนลุ้นรางวัล (ธีมสีชมพู - ขาว สวยเรียบหรู มินิมอล)
+   ========================================================================== */
+
+:root {
+  --bg-pink-light: #fff5f8;
+  --bg-pink-soft: #fdf2f8;
+  --bg-pink-card: #ffffff;
+  
+  --pink-primary: #ec4899;
+  --pink-rose: #f43f5e;
+  --pink-light: #f472b6;
+  --pink-soft-border: rgba(244, 114, 182, 0.35);
+  --pink-glow: rgba(236, 72, 153, 0.2);
+
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --text-pink: #db2777;
+}
+
+body.register-theme {
+  font-family: 'Prompt', sans-serif;
+  background: linear-gradient(135deg, #fff5f8 0%, #fdf2f8 50%, #fce7f3 100%);
+  background-attachment: fixed;
+  color: #1e293b;
+  min-height: 100vh;
+}
+
+button, input, select {
+  touch-action: manipulation;
+}
+
+/* ลวดลายจุดประกายระยิบระยับแบบมินิมอล */
+.pink-sparkle-grid {
+  background-image: 
+    radial-gradient(rgba(244, 114, 182, 0.18) 1.2px, transparent 1.2px),
+    radial-gradient(rgba(236, 72, 153, 0.1) 1.2px, transparent 1.2px);
+  background-size: 28px 28px, 56px 56px;
+  background-position: 0 0, 14px 14px;
+}
+
+/* ข้อความไล่เฉดสีชมพูสวยหรู */
+.pink-gradient-text {
+  background: linear-gradient(135deg, #db2777 0%, #ec4899 50%, #f43f5e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* กล่องการ์ดสีขาวขอบชมพูระเรื่อ */
+.white-pink-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1.5px solid rgba(244, 114, 182, 0.3);
+  box-shadow: 0 20px 45px -15px rgba(236, 72, 153, 0.16), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* ตั๋วบัตรดิจิทัล */
+.ticket-card-clean {
+  background: linear-gradient(180deg, #ffffff 0%, #fff7fa 50%, #fff0f5 100%);
+  border: 2px solid rgba(244, 114, 182, 0.45);
+  box-shadow: 0 12px 30px -5px rgba(236, 72, 153, 0.15);
+  position: relative;
+}
+
+.ticket-dot-pattern {
+  background-image: radial-gradient(rgba(244, 114, 182, 0.16) 1.5px, transparent 1.5px);
+  background-size: 16px 16px;
+}
+
+/* ปุ่มชมพูสวย */
+.btn-pink-gradient {
+  background: linear-gradient(135deg, #f43f5e 0%, #ec4899 50%, #db2777 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 25px -5px rgba(236, 72, 153, 0.38);
+  transition: all 0.25s ease;
+}
+
+.btn-pink-gradient:hover {
+  background: linear-gradient(135deg, #fb7185 0%, #f472b6 50%, #ec4899 100%);
+  box-shadow: 0 14px 30px -5px rgba(236, 72, 153, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-pink-gradient:active {
+  transform: translateY(1px);
+}

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ลงทะเบียนลุ้นรางวัล - Lucky Draw</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- แยกไฟล์สไตล์สำหรับ register.html -->
+  <link rel="stylesheet" href="register.css">
+</head>
+<body class="register-theme pink-sparkle-grid text-slate-800 min-h-screen flex flex-col justify-between p-4 sm:p-6">
+
+  <!-- Header สวยเรียบหรู โทนชมพู-ขาว -->
+  <div class="w-full max-w-md mx-auto text-center pt-2 pb-4">
+    <div class="inline-flex items-center justify-center gap-2 mb-2">
+      <div class="w-12 h-12 rounded-2xl bg-white border-2 border-pink-200 flex items-center justify-center text-2xl shadow-sm">
+        🎁
+      </div>
+    </div>
+    <div class="text-[11px] font-black uppercase tracking-[0.2em] text-pink-600 mb-0.5">
+      ✨ ANNUAL LUCKY DRAW FESTIVAL ✨
+    </div>
+    <h1 class="text-2xl sm:text-3xl font-black pink-gradient-text tracking-tight">
+      ลงทะเบียนลุ้นรางวัล
+    </h1>
+    <p class="text-slate-500 text-xs sm:text-sm mt-1">
+      ระบบลงทะเบียนและตรวจสอบสิทธิ์ลุ้นรางวัลประจำปี
+    </p>
+  </div>
+
+  <!-- Main Card Container (White & Pink Clean Card) -->
+  <div class="w-full max-w-md mx-auto white-pink-card rounded-3xl p-6 sm:p-7 space-y-5">
+    
+    <!-- Tab Navigation -->
+    <div class="flex items-center p-1 bg-pink-50 border border-pink-200 rounded-2xl text-xs font-bold">
+      <button type="button" id="tabBtnRegister" onclick="switchTab('register')" class="flex-1 py-2.5 rounded-xl transition bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-200 font-bold">
+        📝 ลงทะเบียนใหม่
+      </button>
+      <button type="button" id="tabBtnSearch" onclick="switchTab('search')" class="flex-1 py-2.5 rounded-xl transition text-slate-600 hover:text-pink-600 font-bold">
+        🔍 ค้นหารหัส / ตรวจผล
+      </button>
+    </div>
+
+    <!-- Alert Box -->
+    <div id="errorAlert" class="hidden bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-2xl text-xs font-semibold space-y-1 shadow-sm">
+      <div class="flex items-center gap-2 text-rose-600 font-bold">
+        <span>🚫</span> <span>แจ้งเตือนจากระบบ</span>
+      </div>
+      <p id="errorAlertText" class="text-rose-600 pl-6"></p>
+    </div>
+
+    <!-- 1. Form Section: ลงทะเบียนใหม่ -->
+    <div id="sectionRegister">
+      <form id="regForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+            <span>🎖️</span> ยศ / คำนำหน้า <span class="text-rose-500">*</span>
+          </label>
+          <select id="regRank" class="w-full bg-white border border-pink-200 p-3 rounded-xl focus:border-pink-500 focus:outline-none text-slate-800 text-sm shadow-sm" required>
+            <option value="">-- เลือกยศ / คำนำหน้า --</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">
+              ชื่อ <span class="text-rose-500">*ตัวอักษรเท่านั้น</span>
+            </label>
+            <input type="text" id="regFirstName" placeholder="ชื่อ" class="w-full bg-white border border-pink-200 p-3 rounded-xl focus:border-pink-500 focus:outline-none text-slate-800 text-sm shadow-sm" required autocomplete="off">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">
+              นามสกุล <span class="text-rose-500">*ตัวอักษรเท่านั้น</span>
+            </label>
+            <input type="text" id="regLastName" placeholder="นามสกุล" class="w-full bg-white border border-pink-200 p-3 rounded-xl focus:border-pink-500 focus:outline-none text-slate-800 text-sm shadow-sm" required autocomplete="off">
+          </div>
+        </div>
+
+        <!-- แจ้งเตือนชื่อซ้ำแบบเรียลไทม์ -->
+        <div id="duplicateWarning" class="hidden text-xs text-rose-600 font-bold bg-rose-50 p-3 rounded-xl border border-rose-200 shadow-sm"></div>
+
+        <p class="text-[11px] text-slate-400 -mt-2">⚠️ ชื่อและนามสกุล ห้ามเคาะเว้นวรรค หรือใส่อักขระพิเศษ</p>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+            <span>🏢</span> สังกัด (กองบิน / แผนก / หน่วย) <span class="text-rose-500">*</span>
+          </label>
+          <select id="regDept" class="w-full bg-white border border-pink-200 p-3 rounded-xl focus:border-pink-500 focus:outline-none text-slate-800 text-sm shadow-sm" required>
+            <option value="">-- เลือกสังกัด --</option>
+          </select>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn-pink-gradient w-full font-black text-base sm:text-lg py-3.5 rounded-xl transition transform active:scale-[0.99] flex items-center justify-center gap-2">
+          <span>✨</span> <span>ยืนยันการลงทะเบียนรับสิทธิ์</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- 2. Form Section: ค้นหาตั๋วเดิม / ตรวจผลรางวัล -->
+    <div id="sectionSearch" class="hidden space-y-4">
+      <div class="text-xs text-slate-600 bg-pink-50/70 border border-pink-200 p-3 rounded-xl leading-relaxed">
+        กรอกหมายเลขรหัสบัตร เช่น <span class="font-mono text-pink-600 font-bold">EMP-12345</span> หรือพิมพ์ชื่อ-นามสกุล เพื่อค้นหาบัตรประจำตัวและตรวจสอบผลรางวัล
+      </div>
+      <form id="searchForm" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">รหัสบัตร หรือ ชื่อ-สกุล</label>
+          <input type="text" id="searchInput" placeholder="เช่น EMP-49215 หรือ สมชาย" class="w-full bg-white border border-pink-200 p-3 rounded-xl focus:border-pink-500 focus:outline-none text-slate-800 text-sm shadow-sm" required autocomplete="off">
+        </div>
+        <button type="submit" id="btnSearchSubmit" class="btn-pink-gradient w-full font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
+          <span>🔍</span> <span>ค้นหาข้อมูลบัตร / ตรวจผล</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- 3. Result Section: บัตรลุ้นรางวัลสไตล์มินิมอล (Digital Lucky Pass) -->
+    <div id="ticketResult" class="hidden space-y-4">
+      <div class="ticket-card-clean rounded-3xl p-6 relative overflow-hidden ticket-dot-pattern">
+        
+        <!-- แสงประกายมุมบัตร -->
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-pink-300/20 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="absolute -bottom-10 -left-10 w-28 h-28 bg-rose-200/25 rounded-full blur-2xl pointer-events-none"></div>
+
+        <!-- หัวบัตร -->
+        <div class="flex justify-between items-center border-b border-pink-200/80 pb-3 mb-4">
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl">🎁</span>
+            <div>
+              <div class="text-[10px] text-pink-600 uppercase tracking-[0.25em] font-black">DIGITAL LUCKY PASS</div>
+              <div class="text-xs text-slate-500">บัตรลุ้นรางวัลประจำตัว</div>
+            </div>
+          </div>
+          <span id="ticketStatusBadge" class="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+            🟢 มีสิทธิ์ลุ้น
+          </span>
+        </div>
+
+        <!-- รหัสสุ่มตัวใหญ่ คมชัด สไตล์มินิมอล -->
+        <div class="text-center py-3.5 bg-white rounded-2xl border-2 border-dashed border-pink-300 mb-4 shadow-sm">
+          <div class="text-[11px] text-slate-400 font-medium">หมายเลขประจำตัวของท่าน</div>
+          <div id="ticketCode" class="text-3xl sm:text-4xl font-black font-mono pink-gradient-text tracking-wider mt-0.5">
+            EMP-00000
+          </div>
+        </div>
+
+        <!-- ข้อมูลผู้ถือบัตร -->
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between items-center py-1.5 border-b border-pink-100">
+            <span class="text-slate-500">ยศ - ชื่อ - นามสกุล:</span>
+            <span id="ticketName" class="font-bold text-slate-800 text-sm"></span>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-pink-100">
+            <span class="text-slate-500">สังกัด:</span>
+            <span id="ticketDept" class="font-bold text-pink-600"></span>
+          </div>
+          <div id="ticketPrizeRow" class="hidden flex justify-between items-center py-2 border border-pink-200 bg-pink-50 px-3 rounded-xl">
+            <span class="text-pink-600 font-bold">🎁 ได้รับรางวัล:</span>
+            <span id="ticketPrize" class="font-black text-slate-800 text-sm"></span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ปุ่มเครื่องมือของบัตร -->
+      <div class="space-y-2">
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="copyTicketCode()" class="bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+            <span id="copyBtnIcon">📋</span> <span id="copyBtnLabel">คัดลอกรหัส</span>
+          </button>
+          <button type="button" onclick="refreshCurrentTicketStatus()" class="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-pink-200">
+            <span>🔄</span> <span>ตรวจผลสด</span>
+          </button>
+        </div>
+
+        <button type="button" onclick="resetToNewRegistration()" class="w-full bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1 shadow-sm">
+          <span>📝 ลงทะเบียนคนใหม่ / กลับหน้าแรก</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="w-full max-w-md mx-auto text-center py-3 text-[11px] text-slate-400">
+    ระบบลุ้นรางวัล Lucky Draw • รองรับทุกอุปกรณ์และสมาร์ทโฟน
+  </div>
+
+  <script>
+    // ตรวจสอบ Origin อัตโนมัติ: หากเปิดผ่าน file:// หรือไม่มี Origin ให้ชี้ไปที่ http://localhost:3000 อัตโนมัติ
+    const isFile = window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null';
+    const DEFAULT_PORT = 3000;
+    const SERVER_ORIGIN = isFile ? `http://localhost:${DEFAULT_PORT}` : window.location.origin;
+    const API = `${SERVER_ORIGIN}/api`;
+
+    let currentTicketEmpCode = '';
+
+    // สลับแท็บระหว่างลงทะเบียนใหม่ และ ค้นหาตั๋วเดิม
+    function switchTab(tab) {
+      const btnReg = document.getElementById('tabBtnRegister');
+      const btnSearch = document.getElementById('tabBtnSearch');
+      const secReg = document.getElementById('sectionRegister');
+      const secSearch = document.getElementById('sectionSearch');
+      const ticketResult = document.getElementById('ticketResult');
+      const errorAlert = document.getElementById('errorAlert');
+
+      errorAlert.classList.add('hidden');
+      ticketResult.classList.add('hidden');
+
+      if (tab === 'register') {
+        btnReg.className = "flex-1 py-2.5 rounded-xl transition bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-200 font-bold";
+        btnSearch.className = "flex-1 py-2.5 rounded-xl transition text-slate-600 hover:text-pink-600 font-bold";
+        secReg.classList.remove('hidden');
+        secSearch.classList.add('hidden');
+      } else {
+        btnSearch.className = "flex-1 py-2.5 rounded-xl transition bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-200 font-bold";
+        btnReg.className = "flex-1 py-2.5 rounded-xl transition text-slate-600 hover:text-pink-600 font-bold";
+        secSearch.classList.remove('hidden');
+        secReg.classList.add('hidden');
+        document.getElementById('searchInput').focus();
+      }
+    }
+
+    // โหลดรายชื่อยศ
+    async function loadRanks() {
+      try {
+        const res = await fetch(`${API}/ranks`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const select = document.getElementById('regRank');
+        select.innerHTML = '<option value="">-- เลือกยศ / คำนำหน้า --</option>' + 
+          data.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+      } catch (err) {
+        console.error("Error loading ranks:", err);
+        showServerNotice();
+      }
+    }
+
+    // โหลดรายชื่อสังกัด
+    async function loadDepartments() {
+      try {
+        const res = await fetch(`${API}/departments`);
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('regDept').innerHTML = '<option value="">-- เลือกสังกัด --</option>' + 
+          data.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+      } catch (err) {
+        console.error("Error loading departments:", err);
+        showServerNotice();
+      }
+    }
+
+    function showServerNotice() {
+      const errBox = document.getElementById('errorAlert');
+      const errTxt = document.getElementById('errorAlertText');
+      if (errBox && errTxt) {
+        errBox.classList.remove('hidden');
+        errTxt.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ (http://localhost:3000) กรุณาตรวจสอบว่าเซิร์ฟเวอร์เปิดใช้งานอยู่';
+      }
+    }
+
+    loadRanks();
+    loadDepartments();
+
+    // กรองและบล็อกการเคาะเว้นวรรคและอักขระพิเศษ
+    const cleanInput = (e) => {
+      const cleaned = e.target.value.replace(/[^a-zA-Z\u0E00-\u0E7F]/g, '');
+      if (e.target.value !== cleaned) {
+        e.target.value = cleaned;
+      }
+    };
+
+    const blockSpaces = (e) => {
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+      }
+    };
+
+    const firstNameInput = document.getElementById('regFirstName');
+    const lastNameInput = document.getElementById('regLastName');
+    const duplicateWarning = document.getElementById('duplicateWarning');
+    const submitBtn = document.getElementById('submitBtn');
+    const errorAlert = document.getElementById('errorAlert');
+    const errorAlertText = document.getElementById('errorAlertText');
+
+    firstNameInput.addEventListener('keydown', blockSpaces);
+    firstNameInput.addEventListener('input', cleanInput);
+    lastNameInput.addEventListener('keydown', blockSpaces);
+    lastNameInput.addEventListener('input', cleanInput);
+
+    // ตรวจสอบชื่อซ้ำแบบสด
+    async function checkDuplicate() {
+      const firstName = firstNameInput.value.trim();
+      const lastName = lastNameInput.value.trim();
+      if (!firstName || !lastName) {
+        duplicateWarning.classList.add('hidden');
+        submitBtn.disabled = false;
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/employees/check-duplicate?first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName)}`);
+        const data = await res.json();
+        if (data.exists) {
+          duplicateWarning.innerHTML = `⚠️ รายชื่อนี้ (${data.employee.name}) ได้ลงทะเบียนไว้แล้วในสังกัด "${data.employee.department}" (รหัส: ${data.employee.emp_code}) ไม่สามารถลงทะเบียนซ้ำได้`;
+          duplicateWarning.classList.remove('hidden');
+          submitBtn.disabled = true;
+          submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+          duplicateWarning.classList.add('hidden');
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+      } catch (err) {
+        console.error("Check duplicate error:", err);
+      }
+    }
+
+    firstNameInput.addEventListener('blur', checkDuplicate);
+    lastNameInput.addEventListener('blur', checkDuplicate);
+
+    // ส่งฟอร์มลงทะเบียน
+    document.getElementById('regForm').onsubmit = async (e) => {
+      e.preventDefault();
+      errorAlert.classList.add('hidden');
+
+      const rank = document.getElementById('regRank').value;
+      const firstName = firstNameInput.value.trim();
+      const lastName = lastNameInput.value.trim();
+      const department = document.getElementById('regDept').value;
+
+      const nameRegex = /^[a-zA-Z\u0E00-\u0E7F]+$/;
+      if (!nameRegex.test(firstName)) {
+        alert('ชื่อต้องเป็นตัวอักษรเท่านั้น ห้ามเคาะเว้นวรรคหรือใส่อักขระพิเศษ');
+        firstNameInput.focus();
+        return;
+      }
+
+      if (!nameRegex.test(lastName)) {
+        alert('นามสกุลต้องเป็นตัวอักษรเท่านั้น ห้ามเคาะเว้นวรรคหรือใส่อักขระพิเศษ');
+        lastNameInput.focus();
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/employees`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rank,
+            first_name: firstName,
+            last_name: lastName,
+            department
+          })
+        });
+        
+        const data = await res.json();
+
+        if (res.ok) {
+          displayTicket(data);
+        } else {
+          errorAlertText.textContent = data.error || 'เกิดข้อผิดพลาดในการลงทะเบียน กรุณาลองใหม่อีกครั้ง';
+          errorAlert.classList.remove('hidden');
+        }
+      } catch (err) {
+        errorAlertText.textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบอินเทอร์เน็ต';
+        errorAlert.classList.remove('hidden');
+      }
+    };
+
+    // ส่งฟอร์มค้นหาข้อมูลบัตร
+    document.getElementById('searchForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const val = document.getElementById('searchInput').value.trim();
+      if (!val) return;
+
+      errorAlert.classList.add('hidden');
+      const isCode = val.toUpperCase().startsWith('EMP-');
+      const queryKey = isCode ? 'code' : 'search';
+
+      try {
+        const res = await fetch(`${API}/employees/check-status?${queryKey}=${encodeURIComponent(val)}`);
+        const data = await res.json();
+
+        if (res.ok && data) {
+          displayTicket(data);
+        } else {
+          errorAlertText.textContent = data.error || 'ไม่พบข้อมูลบัตรที่ตรงกับเงื่อนไข';
+          errorAlert.classList.remove('hidden');
+        }
+      } catch (err) {
+        errorAlertText.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
+        errorAlert.classList.remove('hidden');
+      }
+    };
+
+    // แสดงบัตรลุ้นรางวัล
+    function displayTicket(emp) {
+      currentTicketEmpCode = emp.emp_code;
+      document.getElementById('sectionRegister').classList.add('hidden');
+      document.getElementById('sectionSearch').classList.add('hidden');
+      document.getElementById('ticketResult').classList.remove('hidden');
+
+      document.getElementById('ticketCode').textContent = emp.emp_code;
+      
+      const displayName = emp.name || `${emp.rank ? emp.rank + ' ' : ''}${emp.first_name || ''} ${emp.last_name || ''}`.trim();
+      document.getElementById('ticketName').textContent = displayName;
+      document.getElementById('ticketDept').textContent = emp.department || '-';
+
+      const statusBadge = document.getElementById('ticketStatusBadge');
+      const prizeRow = document.getElementById('ticketPrizeRow');
+      const prizeText = document.getElementById('ticketPrize');
+
+      if (emp.status === 'won') {
+        statusBadge.className = "text-[11px] font-black px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-300 animate-pulse";
+        statusBadge.innerHTML = "🏆 ได้รับรางวัลแล้ว!";
+        prizeRow.classList.remove('hidden');
+        prizeText.textContent = emp.prize_name || 'ได้รับรางวัลบนเวที';
+      } else if (emp.status === 'absent') {
+        statusBadge.className = "text-[11px] font-black px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200";
+        statusBadge.innerHTML = "⚠️ สละสิทธิ์ / โมฆะ";
+        prizeRow.classList.add('hidden');
+      } else {
+        statusBadge.className = "text-[11px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200";
+        statusBadge.innerHTML = "🟢 รอสุ่มบนเวที";
+        prizeRow.classList.add('hidden');
+      }
+    }
+
+    // ตรวจสอบสถานะบัตรปัจจุบันอีกครั้งแบบสด
+    async function refreshCurrentTicketStatus() {
+      if (!currentTicketEmpCode) return;
+      try {
+        const res = await fetch(`${API}/employees/check-status?code=${encodeURIComponent(currentTicketEmpCode)}`);
+        const data = await res.json();
+        if (res.ok && data) {
+          displayTicket(data);
+          alert(data.status === 'won' ? `🎉 ยินดีด้วยครับ! คุณได้รับรางวัล: ${data.prize_name}` : '🟢 สถานะ: มีสิทธิ์ลุ้นรางวัล (ยังไม่ถูกสุ่ม)');
+        }
+      } catch (err) {
+        alert('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    }
+
+    // คัดลอกรหัสตั๋ว
+    function copyTicketCode() {
+      if (!currentTicketEmpCode) return;
+      navigator.clipboard.writeText(currentTicketEmpCode).then(() => {
+        document.getElementById('copyBtnIcon').textContent = "✅";
+        document.getElementById('copyBtnLabel').textContent = "คัดลอกแล้ว!";
+        setTimeout(() => {
+          document.getElementById('copyBtnIcon').textContent = "📋";
+          document.getElementById('copyBtnLabel').textContent = "คัดลอกรหัส";
+        }, 2000);
+      }).catch(() => {
+        prompt("คัดลอกรหัส:", currentTicketEmpCode);
+      });
+    }
+
+    // รีเซ็ตเพื่อลงทะเบียนคนใหม่
+    function resetToNewRegistration() {
+      document.getElementById('regForm').reset();
+      document.getElementById('duplicateWarning').classList.add('hidden');
+      document.getElementById('errorAlert').classList.add('hidden');
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      switchTab('register');
+    }
+  </script>
+</body>
+</html>

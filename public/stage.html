@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Lucky Draw - ระบบจับรางวัลมงคล</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- แยกโค้ดตกแต่ง ดีไซน์ แสงนีออน แอนิเมชัน ออกมาเป็นไฟล์ภายนอก -->
+  <link rel="stylesheet" href="stage.css">
+</head>
+<body class="stage-theme sparkle-grid text-slate-800 min-h-screen p-3 lg:p-6 flex flex-col justify-between">
+
+  <!-- ส่วนหัวของเวที (ธีมชมพู - ขาว สวยเรียบหรู) -->
+  <header class="w-full max-w-[1850px] mx-auto flex flex-col md:flex-row justify-between items-center pb-4 border-b border-pink-200 gap-3">
+    <div class="flex items-center gap-3.5 text-center md:text-left">
+      <div class="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-white border-2 border-pink-200 flex items-center justify-center text-3xl shadow-sm">
+        🎰
+      </div>
+      <div>
+        <div class="flex items-center gap-2 justify-center md:justify-start">
+          <span class="text-[10px] sm:text-xs font-black uppercase tracking-widest text-pink-600 bg-pink-50 px-2.5 py-0.5 rounded-full border border-pink-200 flex items-center gap-1 shadow-sm">
+            <span>✨</span> ANNUAL LUCKY DRAW STAGE <span>✨</span>
+          </span>
+        </div>
+        <h1 class="text-2xl lg:text-3xl font-black tracking-wider pink-gradient-text mt-0.5">
+          LUCKY DRAW FESTIVAL
+        </h1>
+        <p class="text-slate-500 text-xs">ระบบจับสลากรางวัลมงคลประจำปี • ระบบสุ่มโปรเจกเตอร์บนเวที</p>
+      </div>
+    </div>
+
+    <!-- ลิงก์และปุ่มเครื่องมือสำหรับโปรเจกเตอร์เวที -->
+    <div class="flex items-center gap-2 flex-wrap justify-center">
+      <!-- ปุ่มเปิด QR Code ฉายขึ้นจอเวที -->
+      <button onclick="openStageQRModal()" class="text-xs bg-white hover:bg-pink-50 text-pink-700 border border-pink-200 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm" title="ฉาย QR Code ขึ้นจอให้ผู้ร่วมงานสแกน (คีย์ลัด: Q)">
+        <span>📲 QR ลงทะเบียน</span>
+        <span class="hidden sm:inline text-[10px] bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black px-1.5 py-0.5 rounded shadow">สแกนสด</span>
+      </button>
+
+      <!-- ปุ่มเปิด/ปิดเสียง SFX -->
+      <button id="audioMuteBtn" onclick="toggleAudioMute()" class="text-xs bg-white hover:bg-pink-50 text-slate-700 border border-pink-200 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm" title="เปิด/ปิดเสียงเอฟเฟกต์ (คีย์ลัด: M)">
+        <span id="audioMuteIcon">🔊</span>
+        <span id="audioMuteText" class="hidden sm:inline">เสียงเปิด</span>
+      </button>
+
+      <button onclick="toggleFullScreen()" class="text-xs bg-gradient-to-r from-pink-500 via-rose-500 to-pink-500 hover:from-pink-400 hover:to-rose-400 text-white font-black px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-md shadow-pink-200" title="เต็มจอ (คีย์ลัด: F)">
+        ⛶ <span class="hidden sm:inline">เต็มจอ</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- แถบสลับแท็บสำหรับหน้าจอมือถือ/แท็บเล็ต (ซ่อนบนหน้าจอขนาดใหญ่ lg ขึ้นไป) -->
+  <div class="lg:hidden w-full max-w-[1850px] mx-auto flex items-center justify-between gap-1 p-1 bg-white/90 border border-pink-200 rounded-2xl my-3 text-xs shadow-sm">
+    <button onclick="setMobileTab('stage')" id="tabBtnStage" class="flex-1 py-2 px-2 rounded-xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 text-white transition flex items-center justify-center gap-1 shadow">
+      <span>🎰</span> <span>เวทีสุ่ม</span>
+    </button>
+    <button onclick="setMobileTab('prizes')" id="tabBtnPrizes" class="flex-1 py-2 px-2 rounded-xl font-bold text-slate-600 hover:text-pink-600 transition flex items-center justify-center gap-1">
+      <span>🎁</span> <span>รางวัล</span> (<span id="mobilePrizeCount">0</span>)
+    </button>
+    <button onclick="setMobileTab('winners')" id="tabBtnWinners" class="flex-1 py-2 px-2 rounded-xl font-bold text-slate-600 hover:text-pink-600 transition flex items-center justify-center gap-1">
+      <span>🏆</span> <span>ผู้โชคดี</span> (<span id="mobileWinnerCount">0</span>)
+    </button>
+  </div>
+
+  <!-- เนื้อหาหลัก 3 คอลัมน์ (ซ้าย 3: รายการรางวัล | กลาง 6: เวทีสุ่ม | ขวา 3: ผลรางวัล Real-time) -->
+  <main class="w-full max-w-[1850px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5 my-2 flex-1 items-start">
+    
+    <!-- 1. ฝั่งซ้าย (3 คอลัมน์): แถบแสดงรายการและสถานะของรางวัล (Prize Showcase & Status) -->
+    <aside id="panelPrizes" class="lg:col-span-3 pink-panel rounded-3xl p-5 shadow-lg flex flex-col lg:h-[calc(100vh-140px)] lg:min-h-[620px] lg:max-h-[820px] h-auto">
+      <div class="flex justify-between items-center border-b border-pink-200 pb-3 mb-3">
+        <div>
+          <h2 class="text-base font-black text-slate-800 flex items-center gap-2">
+            <span>🎁</span> รายการของรางวัล
+          </h2>
+          <p class="text-[11px] text-slate-500 mt-0.5">คลิกเพื่อเลือกสลับรางวัลได้ทันที</p>
+        </div>
+        <button onclick="loadAllPrizes()" title="รีเฟรชรายการของรางวัล" class="bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 p-1.5 rounded-lg text-xs transition">
+          🔄
+        </button>
+      </div>
+
+      <!-- รายการของรางวัลทั้งหมด (Scrollable) -->
+      <div id="prizeShowcaseList" class="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+        <!-- แสดงรายการของรางวัลแบบไดนามิก -->
+      </div>
+    </aside>
+
+    <!-- 2. ตรงกลาง (6 คอลัมน์): เวทีจับฉลากหลัก + ตัวเลือกจำนวนคนที่จะสุ่ม -->
+    <section id="panelStage" class="lg:col-span-6 space-y-5">
+      
+      <!-- แถบควบคุม: ขอบเขตสังกัด + จำนวนคนที่จะสุ่มพร้อมกัน (Batch Draw) -->
+      <div class="pink-panel rounded-2xl p-4 shadow-md space-y-3.5">
+        
+        <!-- แถวที่ 1: ขอบเขตสังกัด และ ป้ายผู้มีสิทธิ์ -->
+        <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-700 flex items-center gap-1">🎖️ สังกัด:</span>
+            <div class="inline-flex rounded-xl p-0.5 bg-pink-50 border border-pink-200">
+              <button type="button" id="modeBtnAll" onclick="setDeptMode('all')" class="px-2.5 py-1 rounded-lg font-bold transition bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow">
+                🌐 ทุกสังกัด
+              </button>
+              <button type="button" id="modeBtnSingle" onclick="setDeptMode('single')" class="px-2.5 py-1 rounded-lg font-bold transition text-slate-600 hover:text-pink-600">
+                🎖️ เฉพาะ 1 สังกัด
+              </button>
+              <button type="button" id="modeBtnCustom" onclick="setDeptMode('custom')" class="px-2.5 py-1 rounded-lg font-bold transition text-slate-600 hover:text-pink-600">
+                🎯 หลายสังกัด
+              </button>
+            </div>
+          </div>
+
+          <!-- ป้ายจำนวนผู้มีสิทธิ์ -->
+          <div class="bg-pink-50 border border-pink-200 text-slate-700 px-3.5 py-1 rounded-xl font-bold flex items-center gap-1.5 shadow-sm">
+            <span>👥 มีสิทธิ์ลุ้น:</span>
+            <span id="eligibleCountBadge" class="text-pink-600 text-sm font-black">กำลังตรวจ...</span>
+          </div>
+        </div>
+
+        <!-- ตัวเลือกเสริมกรณีสุ่มเฉพาะสังกัด -->
+        <div id="singleDeptWrapper" class="hidden items-center gap-2">
+          <select id="singleDeptSelect" onchange="updateEligibleCount()" class="w-full bg-white text-slate-800 border border-pink-200 text-xs py-2 px-3 rounded-lg focus:outline-pink-400 font-bold shadow-sm"></select>
+        </div>
+
+        <!-- ตัวเลือกเสริมกรณีเลือกหลายสังกัด -->
+        <div id="customDeptWrapper" class="hidden items-center gap-2">
+          <button type="button" onclick="openDeptModal()" class="w-full bg-white hover:bg-pink-50 border border-pink-200 text-pink-700 text-xs font-bold px-3 py-2 rounded-lg transition flex items-center justify-center gap-1.5 shadow-sm">
+            <span>🎯 กำหนดสังกัดที่เข้าร่วม (เลือกแล้ว <span id="customDeptCount" class="text-pink-600 font-black">0</span> สังกัด)</span>
+          </button>
+        </div>
+
+        <!-- แถวที่ 2: เลือกระบบสุ่มพร้อมกัน (สุ่มทีเดียวได้สูงสุด 10 คน) -->
+        <div class="pt-3 border-t border-pink-100 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-700 flex items-center gap-1">
+              <span>⚡</span> สุ่มพร้อมกันรอบนี้:
+            </span>
+            <div class="flex items-center gap-1">
+              <button type="button" onclick="adjustDrawCount(-1)" class="bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 w-7 h-7 rounded-lg font-bold flex items-center justify-center text-sm shadow-sm">-</button>
+              <input type="number" id="drawCountInput" value="1" min="1" max="10" class="w-12 bg-white border border-pink-200 text-pink-700 text-center font-black text-sm py-1 rounded-lg focus:outline-none shadow-sm" readonly>
+              <button type="button" onclick="adjustDrawCount(1)" class="bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 w-7 h-7 rounded-lg font-bold flex items-center justify-center text-sm shadow-sm">+</button>
+            </div>
+            <span class="text-xs text-slate-500 font-bold">ท่าน</span>
+          </div>
+
+          <!-- ปุ่มลัดเลือกจำนวนด่วน -->
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="setDrawCount(1)" class="count-btn px-2.5 py-1 text-xs rounded-lg font-bold bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow" data-count="1">1</button>
+            <button type="button" onclick="setDrawCount(2)" class="count-btn px-2.5 py-1 text-xs rounded-lg font-bold bg-white border border-pink-200 text-slate-600 hover:text-pink-600 shadow-sm" data-count="2">2</button>
+            <button type="button" onclick="setDrawCount(3)" class="count-btn px-2.5 py-1 text-xs rounded-lg font-bold bg-white border border-pink-200 text-slate-600 hover:text-pink-600 shadow-sm" data-count="3">3</button>
+            <button type="button" onclick="setDrawCount(5)" class="count-btn px-2.5 py-1 text-xs rounded-lg font-bold bg-white border border-pink-200 text-slate-600 hover:text-pink-600 shadow-sm" data-count="5">5</button>
+            <button type="button" onclick="setDrawCount(10)" class="count-btn px-2.5 py-1 text-xs rounded-lg font-bold bg-white border border-pink-200 text-slate-600 hover:text-pink-600 shadow-sm" data-count="10">10</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ตู้สุ่มรางวัลเวทีใหญ่ (Stage Slot Machine Box - Clean Pink & White) -->
+      <div class="slot-machine-box rounded-3xl p-8 lg:p-12 text-center relative overflow-hidden space-y-6 neon-pulse">
+        
+        <!-- แสงประกายพื้นหลังแบบซอฟต์ -->
+        <div class="absolute -top-24 -left-24 w-72 h-72 bg-pink-300/25 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-72 h-72 bg-rose-200/30 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- ชื่อรางวัลที่กำลังสุ่ม -->
+        <div>
+          <div class="text-[11px] font-black uppercase tracking-widest text-pink-600 mb-1 flex items-center justify-center gap-1.5">
+            <span>✨</span> LUCKY DRAW STAGE <span>✨</span>
+          </div>
+          <div id="prizeTitle" class="text-2xl lg:text-3xl text-pink-600 font-black tracking-wide drop-shadow-sm mb-1">
+            🏆 กรุณาเลือกของรางวัล
+          </div>
+          <div id="batchInfoNote" class="text-xs font-semibold text-slate-500">
+            สุ่มครั้งละ 1 ท่าน (รางวัลคงเหลือ: -)
+          </div>
+        </div>
+
+        <!-- กล่องแสดงชื่อผู้โชคดีขณะวิ่งสุ่ม / ได้รับรางวัล -->
+        <div id="slotDisplayArea" class="slot-inner-display rounded-2xl py-8 px-4 shadow-inner min-h-[170px] flex flex-col items-center justify-center space-y-2">
+          <div id="displayName" class="text-4xl sm:text-5xl font-black text-slate-800 tracking-wide transition-all">
+            พร้อมเริ่มจับฉลาก
+          </div>
+          <div id="displayDept" class="text-lg sm:text-xl font-bold text-pink-600 h-7 flex items-center justify-center"></div>
+        </div>
+
+        <div id="drawStatusNote" class="text-xs text-slate-500 font-medium">กดปุ่มเริ่มจับฉลากด้านล่างเพื่อสุ่มผู้โชคดี</div>
+      </div>
+
+      <!-- ปุ่มกดสุ่มรางวัลขนาดใหญ่ -->
+      <div>
+        <button id="drawBtn" onclick="runDraw()" class="btn-spin-gradient w-full py-5 lg:py-6 text-2xl lg:text-3xl font-black rounded-2xl transition transform active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3">
+          <span>🎰 เริ่มจับฉลาก</span>
+          <span id="btnBatchLabel" class="text-sm lg:text-base font-extrabold bg-black/15 px-3 py-1 rounded-xl text-white border border-white/30">สุ่ม 1 ท่าน</span>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- 3. ฝั่งขวา (3 คอลัมน์): กระดานแสดงรายชื่อผู้ได้รับรางวัลแบบ Real-time Feed -->
+    <aside id="panelWinners" class="lg:col-span-3 pink-panel rounded-3xl p-5 shadow-lg flex flex-col lg:h-[calc(100vh-140px)] lg:min-h-[620px] lg:max-h-[820px] h-auto">
+      
+      <!-- ส่วนหัวกระดาน -->
+      <div class="flex justify-between items-center border-b border-pink-200 pb-3 mb-3">
+        <div>
+          <h2 class="text-base font-black text-slate-800 flex items-center gap-2">
+            <span>🏆</span> ผู้ได้รับรางวัล
+          </h2>
+          <p class="text-[11px] text-slate-500 mt-0.5">อัปเดตแบบ Real-time</p>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="bg-pink-50 border border-pink-200 text-pink-700 text-xs font-black px-2 py-0.5 rounded-full">
+            <span id="winnersCount">0</span>
+          </span>
+          <button onclick="loadWinners()" title="รีเฟรชรายการ" class="bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-600 p-1.5 rounded-lg text-xs transition">
+            🔄
+          </button>
+        </div>
+      </div>
+
+      <!-- รายการการ์ดผู้ได้รับรางวัล (Scrollable) -->
+      <div id="winnersFeed" class="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+        <!-- รายการจะถูกแทรกแบบสดด้วย JavaScript -->
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- Modal ประกาศผลรางวัล (รองรับทั้งสุ่ม 1 คน และ สุ่มพร้อมกันสูงสุด 10 คน) -->
+  <div id="winnerModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white border-2 border-pink-300 rounded-3xl p-6 lg:p-8 text-center max-w-2xl w-full space-y-5 shadow-2xl max-h-[92vh] flex flex-col">
+      
+      <div class="text-5xl animate-pulse">🏆</div>
+      
+      <div>
+        <span class="text-xs font-black text-pink-600 uppercase tracking-widest bg-pink-50 px-3.5 py-1 rounded-full border border-pink-200">
+          ขอแสดงความยินดีกับผู้ได้รับรางวัล
+        </span>
+        <h2 id="modalPrizeName" class="text-2xl lg:text-3xl font-black text-slate-800 mt-2">รางวัล...</h2>
+        <p id="modalBatchCountText" class="text-xs text-slate-500 mt-1">ผู้โชคดีทั้งหมด 1 ท่าน</p>
+      </div>
+
+      <!-- คอนเทนเนอร์แสดงรายชื่อผู้โชคดี (เลื่อนดูได้กรณี 5-10 คน) -->
+      <div id="modalWinnersContainer" class="flex-1 overflow-y-auto pr-1 space-y-2.5 max-h-[380px] custom-scrollbar">
+        <!-- การ์ดผู้โชคดีจะถูกเรนเดอร์ที่นี่ -->
+      </div>
+
+      <!-- ปุ่มการทำงานท้าย Modal -->
+      <div class="space-y-2 pt-2 border-t border-pink-100">
+        <button onclick="confirmAllWinners()" class="w-full bg-gradient-to-r from-pink-500 via-rose-500 to-pink-600 hover:from-pink-400 hover:to-rose-500 text-white text-lg font-black py-3 rounded-xl shadow-lg shadow-pink-200 transition">
+          ✅ ยืนยันรับรางวัลทั้งหมด
+        </button>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button onclick="voidAllAndRedraw('absent')" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1">
+            <span>❌ สละสิทธิ์ทั้งหมด (จับใหม่ทันที)</span>
+          </button>
+          <button onclick="voidAllAndRedraw('eligible')" class="w-full bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center gap-1">
+            <span>🔄 คืนสิทธิ์ทั้งหมด & สุ่มใหม่</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal สำหรับเลือกหลายสังกัด (Custom Units Modal) -->
+  <div id="deptModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white border-2 border-pink-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-pink-100 pb-3">
+        <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+          <span>🎯</span> เลือกสังกัดที่เข้าร่วมการสุ่ม
+        </h3>
+        <button onclick="closeDeptModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
+      </div>
+
+      <div class="flex justify-between items-center text-xs">
+        <button type="button" onclick="selectAllDepts(true)" class="text-pink-600 font-bold hover:underline">เลือกทั้งหมด</button>
+        <button type="button" onclick="selectAllDepts(false)" class="text-slate-400 hover:underline">ยกเลิกทั้งหมด</button>
+      </div>
+
+      <div id="deptChecklist" class="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+        <!-- รายชื่อ checkbox สังกัด -->
+      </div>
+
+      <div class="border-t border-pink-100 pt-3 flex justify-between items-center">
+        <span class="text-xs text-slate-500">เลือกแล้ว <span id="modalSelectedCount" class="text-pink-600 font-bold">0</span> สังกัด</span>
+        <button type="button" onclick="saveDeptModal()" class="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-bold px-5 py-2 rounded-xl text-sm transition shadow-md shadow-pink-200">
+          บันทึกเงื่อนไข
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- Modal สแกน QR Code บนจอเวที (Stage QR Code Modal) -->
+  <div id="stageQrModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center hidden z-50 p-4" onclick="if(event.target===this) closeStageQRModal()">
+    <div class="bg-white border-2 border-pink-300 rounded-3xl p-6 sm:p-8 text-center max-w-lg w-full space-y-5 shadow-2xl relative">
+      <button onclick="closeStageQRModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 text-2xl font-bold w-9 h-9 rounded-full bg-pink-50 flex items-center justify-center transition">&times;</button>
+      
+      <div>
+        <span class="text-xs font-bold text-pink-600 uppercase tracking-widest bg-pink-50 px-3 py-1 rounded-full border border-pink-200">
+          📲 สแกนเพื่อร่วมสนุก
+        </span>
+        <h2 class="text-2xl sm:text-3xl font-black pink-gradient-text mt-2">ลงทะเบียนลุ้นรางวัล</h2>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1">สแกนด้วยกล้องมือถือเพื่อรับหมายเลขลุ้นรางวัลทันที</p>
+      </div>
+
+      <!-- กล่อง QR Code คมชัดพื้นหลังสีขาว -->
+      <div class="flex flex-col items-center justify-center">
+        <div class="bg-pink-50/70 p-4 rounded-2xl border border-pink-100 shadow-inner inline-block">
+          <div id="stageQrcode"></div>
+        </div>
+        <div class="mt-4 space-y-1 w-full">
+          <a id="stageQrLink" href="#" target="_blank" class="text-pink-600 font-mono text-sm sm:text-base font-bold hover:underline break-all block"></a>
+          <div class="flex items-center justify-center gap-2 pt-2">
+            <button onclick="copyStageQrUrl()" class="bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 shadow-sm">
+              <span id="copyQrBtnText">📋 คัดลอกลิงก์</span>
+            </button>
+            <span class="text-[11px] text-slate-400">• วง Wi-Fi / LAN เดียวกัน</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-pink-100 text-[11px] text-slate-400">
+        กดปุ่ม <kbd class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-mono">Esc</kbd> หรือ <kbd class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-600 font-mono">Q</kbd> เพื่อปิดหน้าต่างนี้
+      </div>
+    </div>
+  </div>
+  <footer class="w-full max-w-[1850px] mx-auto text-center pt-4 text-[11px] text-slate-400 border-t border-pink-100 mt-4">
+    ระบบจับฉลากลุ้นรางวัล Lucky Draw • รองรับสุ่มทีละ 1-10 คน และแสดงสถานะของรางวัลแบบ Real-time
+  </footer>
+
+  <script>
+    // ตรวจสอบ Origin อัตโนมัติ: หากเปิดผ่าน file:// หรือไม่มี Origin ให้ชี้ไปที่ http://localhost:3000 อัตโนมัติ
+    const isFile = window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null';
+    const DEFAULT_PORT = 3000;
+    const SERVER_ORIGIN = isFile ? `http://localhost:${DEFAULT_PORT}` : window.location.origin;
+    const API = `${SERVER_ORIGIN}/api`;
+
+    function openPage(page, e) {
+      if (e) e.preventDefault();
+      const targetUrl = isFile ? `http://localhost:${DEFAULT_PORT}/${page}` : `/${page}`;
+      window.open(targetUrl, '_blank');
+    }
+
+    // ระบบสังเคราะห์เสียง Web Audio API (ทำงานได้บนทุกเบราว์เซอร์ ไม่ต้องพึ่งพาไฟล์เสียงภายนอก)
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) this.ctx = new AudioContextClass();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+      }
+      playTick() {
+        if (this.muted) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(540 + Math.random() * 240, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.04);
+        } catch(e) {}
+      }
+      playFanfare() {
+        if (this.muted) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime;
+          // Melodic victory fanfare (C5, E5, G5, C6)
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+            gain.gain.setValueAtTime(0.001, now + idx * 0.12);
+            gain.gain.linearRampToValueAtTime(0.18, now + idx * 0.12 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.65);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.12);
+            osc.stop(now + idx * 0.12 + 0.7);
+          });
+        } catch(e) {}
+      }
+      playPop() {
+        if (this.muted) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(350, this.ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.08);
+        } catch(e) {}
+      }
+    }
+    const sfx = new SoundEffects();
+
+    function toggleAudioMute() {
+      const isMuted = sfx.toggleMute();
+      document.getElementById('audioMuteIcon').textContent = isMuted ? '🔇' : '🔊';
+      document.getElementById('audioMuteText').textContent = isMuted ? 'เสียงปิด' : 'เสียงเปิด';
+      const btn = document.getElementById('audioMuteBtn');
+      if (isMuted) {
+        btn.classList.add('text-rose-400', 'border-rose-700/60');
+      } else {
+        btn.classList.remove('text-rose-400', 'border-rose-700/60');
+      }
+    }
+
+    // ระบบข้ามแพลตฟอร์ม Fullscreen (Safari/iOS/Android/Windows/Mac)
+    function toggleFullScreen() {
+      const doc = window.document;
+      const docEl = doc.documentElement;
+      const req = docEl.requestFullscreen || docEl.webkitRequestFullScreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+      const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
+
+      if (!doc.fullscreenElement && !doc.webkitFullscreenElement && !doc.mozFullScreenElement && !doc.msFullscreenElement) {
+        if (req) req.call(docEl).catch(() => {});
+      } else {
+        if (exit) exit.call(doc).catch(() => {});
+      }
+    }
+
+    let allPrizes = [];
+    let selectedPrizeId = null;
+    let allDepartments = [];
+    let deptMode = 'all'; // 'all' | 'single' | 'custom'
+    let selectedCustomDepts = [];
+    let currentBatchWinners = []; // เก็บ Array ของผู้ชนะในรอบปัจจุบัน
+    let isDrawing = false;
+    let drawCount = 1;
+    let serverLanUrl = '';
+
+    // 1. โหลดข้อมูลของรางวัลทั้งหมด (สำหรับแถบซ้าย และ ตัวเลือกตรงกลาง)
+    async function loadAllPrizes() {
+      try {
+        const res = await fetch(`${API}/prizes?all=true`);
+        allPrizes = await res.json();
+        
+        // ถ้ายังไม่ได้เลือกรางวัล ให้เลือกลำดับแรกที่ยังมีของเหลือ
+        const availablePrizes = allPrizes.filter(p => p.remaining_amount > 0);
+        if (!selectedPrizeId && availablePrizes.length > 0) {
+          selectedPrizeId = availablePrizes[0].id;
+        } else if (selectedPrizeId && !allPrizes.some(p => p.id === selectedPrizeId)) {
+          selectedPrizeId = availablePrizes.length > 0 ? availablePrizes[0].id : null;
+        }
+
+        renderPrizeShowcase();
+        updateSelectedPrizeDisplay();
+        updateEligibleCount();
+      } catch (err) {
+        console.error("Error loading prizes:", err);
+      }
+    }
+
+    // แสดงรายการของรางวัลทางด้านซ้าย (Showcase & Status)
+    function renderPrizeShowcase() {
+      const container = document.getElementById('prizeShowcaseList');
+      if (allPrizes.length === 0) {
+        container.innerHTML = `<div class="text-center py-10 text-slate-500 text-xs">ยังไม่มีรายการของรางวัล</div>`;
+        return;
+      }
+
+      container.innerHTML = allPrizes.map(p => {
+        const isSelected = p.id === selectedPrizeId;
+        const isAvailable = p.remaining_amount > 0;
+        
+        let statusBadge = '';
+        let cardStyle = '';
+
+        if (isSelected) {
+          cardStyle = 'border-pink-500 bg-pink-50/90 shadow-md shadow-pink-100 scale-[1.02]';
+          statusBadge = `<span class="text-[10px] font-extrabold bg-gradient-to-r from-pink-500 to-rose-500 text-white px-2 py-0.5 rounded-md shadow">⭐ กำลังสุ่ม</span>`;
+        } else if (isAvailable) {
+          cardStyle = 'border-pink-100 bg-white hover:border-pink-300 hover:bg-pink-50/50 cursor-pointer shadow-sm';
+          statusBadge = `<span class="text-[10px] font-bold bg-pink-50 text-pink-600 px-2 py-0.5 rounded-md border border-pink-200">🟢 พร้อมสุ่ม</span>`;
+        } else {
+          cardStyle = 'border-slate-200 bg-slate-50/70 opacity-50 cursor-not-allowed';
+          statusBadge = `<span class="text-[10px] font-semibold bg-slate-100 text-slate-400 px-2 py-0.5 rounded-md">⚪ จับครบแล้ว</span>`;
+        }
+
+        const percentage = Math.round(((p.total_amount - p.remaining_amount) / p.total_amount) * 100);
+
+        return `
+          <div onclick="${isAvailable ? `selectPrize(${p.id})` : ''}" class="border-2 rounded-2xl p-3 transition-all ${cardStyle}">
+            <div class="flex justify-between items-start gap-2">
+              <div class="font-bold text-sm ${isSelected ? 'text-pink-600' : (isAvailable ? 'text-slate-800' : 'text-slate-400 line-through')}">
+                🎁 ${p.name}
+              </div>
+              <div>${statusBadge}</div>
+            </div>
+            
+            <div class="mt-2.5 flex justify-between items-center text-xs">
+              <span class="text-slate-500">คงเหลือ:</span>
+              <span class="font-bold ${isAvailable ? 'text-pink-600' : 'text-slate-400'}">
+                ${p.remaining_amount} / ${p.total_amount}
+              </span>
+            </div>
+
+            <!-- แถบ Progress แสดงสัดส่วนการจับรางวัล -->
+            <div class="w-full bg-pink-100/70 rounded-full h-1.5 mt-1.5 overflow-hidden">
+              <div class="bg-gradient-to-r from-pink-500 to-rose-500 h-1.5 rounded-full" style="width: ${percentage}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // คลิกเลือกของรางวัลจากแถบซ้าย
+    function selectPrize(id) {
+      selectedPrizeId = id;
+      renderPrizeShowcase();
+      updateSelectedPrizeDisplay();
+      validateAndAdjustDrawCount();
+      updateEligibleCount();
+    }
+
+    // อัปเดตการแสดงผลของรางวัลที่เลือกตรงกลาง
+    function updateSelectedPrizeDisplay() {
+      const prize = allPrizes.find(p => p.id === selectedPrizeId);
+      const title = document.getElementById('prizeTitle');
+      const note = document.getElementById('batchInfoNote');
+      const btn = document.getElementById('drawBtn');
+
+      if (!prize || prize.remaining_amount <= 0) {
+        title.textContent = "🎁 กรุณาเลือกของรางวัลที่ยังมีของ";
+        note.textContent = "ไม่มีของรางวัลคงเหลือสำหรับสุ่ม";
+        btn.disabled = true;
+        return;
+      }
+
+      title.textContent = `🏆 กำลังสุ่ม: ${prize.name}`;
+      note.textContent = `สุ่มครั้งละ ${drawCount} ท่าน (รางวัลคงเหลือ: ${prize.remaining_amount}/${prize.total_amount})`;
+      btn.disabled = false;
+    }
+
+    // 2. ระบบปรับจำนวนที่จะสุ่มพร้อมกัน (1-10 คน)
+    function setDrawCount(count) {
+      drawCount = count;
+      validateAndAdjustDrawCount();
+    }
+
+    function adjustDrawCount(delta) {
+      drawCount = Math.max(1, Math.min(10, drawCount + delta));
+      validateAndAdjustDrawCount();
+    }
+
+    function validateAndAdjustDrawCount() {
+      const prize = allPrizes.find(p => p.id === selectedPrizeId);
+      const maxAvailable = prize ? Math.max(1, prize.remaining_amount) : 1;
+      const maxAllowed = Math.min(10, maxAvailable);
+
+      if (drawCount > maxAllowed) {
+        drawCount = maxAllowed;
+      }
+      if (drawCount < 1) {
+        drawCount = 1;
+      }
+
+      document.getElementById('drawCountInput').value = drawCount;
+      document.getElementById('btnBatchLabel').textContent = `สุ่ม ${drawCount} ท่าน`;
+
+      // อัปเดตสถานะปุ่มตัวเลขด่วน
+      document.querySelectorAll('.count-btn').forEach(b => {
+        const c = parseInt(b.dataset.count);
+        if (c === drawCount) {
+          b.className = "count-btn px-2.5 py-1 text-xs rounded-lg font-bold bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow";
+        } else {
+          b.className = "count-btn px-2.5 py-1 text-xs rounded-lg font-bold bg-white border border-pink-200 text-slate-600 hover:text-pink-600 shadow-sm";
+        }
+      });
+
+      updateSelectedPrizeDisplay();
+    }
+
+    // 3. โหลดรายชื่อสังกัด
+    async function loadDepartments() {
+      try {
+        const res = await fetch(`${API}/departments`);
+        allDepartments = await res.json();
+        
+        const singleSelect = document.getElementById('singleDeptSelect');
+        singleSelect.innerHTML = allDepartments.map(d => `<option value="${d.name}">🎖️ ${d.name}</option>`).join('');
+
+        selectedCustomDepts = allDepartments.map(d => d.name);
+        document.getElementById('customDeptCount').textContent = selectedCustomDepts.length;
+
+        updateEligibleCount();
+      } catch (err) {
+        console.error("Error loading departments:", err);
+      }
+    }
+
+    function setDeptMode(mode) {
+      deptMode = mode;
+      
+      const btnAll = document.getElementById('modeBtnAll');
+      const btnSingle = document.getElementById('modeBtnSingle');
+      const btnCustom = document.getElementById('modeBtnCustom');
+      const singleWrapper = document.getElementById('singleDeptWrapper');
+      const customWrapper = document.getElementById('customDeptWrapper');
+
+      [btnAll, btnSingle, btnCustom].forEach(btn => {
+        btn.className = "px-2.5 py-1 rounded-lg font-bold transition text-slate-600 hover:text-pink-600";
+      });
+
+      singleWrapper.classList.add('hidden');
+      singleWrapper.classList.remove('flex');
+      customWrapper.classList.add('hidden');
+
+      if (mode === 'all') {
+        btnAll.className = "px-2.5 py-1 rounded-lg font-bold transition bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow";
+      } else if (mode === 'single') {
+        btnSingle.className = "px-2.5 py-1 rounded-lg font-bold transition bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow";
+        singleWrapper.classList.remove('hidden');
+        singleWrapper.classList.add('flex');
+      } else if (mode === 'custom') {
+        btnCustom.className = "px-2.5 py-1 rounded-lg font-bold transition bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow";
+        customWrapper.classList.remove('hidden');
+      }
+
+      updateEligibleCount();
+    }
+
+    // Modal เลือกหลายสังกัด
+    function openDeptModal() {
+      const container = document.getElementById('deptChecklist');
+      container.innerHTML = allDepartments.map(d => {
+        const isChecked = selectedCustomDepts.includes(d.name) ? 'checked' : '';
+        return `
+          <label class="flex items-center gap-2.5 p-2 rounded-lg hover:bg-pink-50 transition cursor-pointer text-xs">
+            <input type="checkbox" value="${d.name}" ${isChecked} class="dept-check w-4 h-4 rounded text-pink-600 focus:ring-pink-400 bg-white border-pink-300 accent-pink-500">
+            <span class="font-medium text-slate-700">${d.name}</span>
+          </label>
+        `;
+      }).join('');
+
+      updateModalCount();
+      document.querySelectorAll('.dept-check').forEach(chk => chk.addEventListener('change', updateModalCount));
+      document.getElementById('deptModal').classList.remove('hidden');
+    }
+
+    function closeDeptModal() {
+      document.getElementById('deptModal').classList.add('hidden');
+    }
+
+    function selectAllDepts(select) {
+      document.querySelectorAll('.dept-check').forEach(chk => chk.checked = select);
+      updateModalCount();
+    }
+
+    function updateModalCount() {
+      const count = document.querySelectorAll('.dept-check:checked').length;
+      document.getElementById('modalSelectedCount').textContent = count;
+    }
+
+    function saveDeptModal() {
+      const checked = [...document.querySelectorAll('.dept-check:checked')].map(c => c.value);
+      selectedCustomDepts = checked;
+      document.getElementById('customDeptCount').textContent = selectedCustomDepts.length;
+      closeDeptModal();
+      updateEligibleCount();
+    }
+
+    function getSelectedDepartments() {
+      if (deptMode === 'all') return 'all';
+      if (deptMode === 'single') {
+        const val = document.getElementById('singleDeptSelect').value;
+        return val ? [val] : 'all';
+      }
+      if (deptMode === 'custom') {
+        return selectedCustomDepts.length > 0 ? selectedCustomDepts : 'all';
+      }
+      return 'all';
+    }
+
+    async function updateEligibleCount() {
+      try {
+        const depts = getSelectedDepartments();
+        const queryParam = Array.isArray(depts) ? depts.join(',') : depts;
+        const res = await fetch(`${API}/eligible-count?departments=${encodeURIComponent(queryParam)}`);
+        const data = await res.json();
+        document.getElementById('eligibleCountBadge').textContent = `${data.count || 0} คน`;
+        
+        const btn = document.getElementById('drawBtn');
+        if (data.count === 0 || !selectedPrizeId) {
+          btn.disabled = true;
+        } else {
+          btn.disabled = false;
+        }
+      } catch (err) {
+        console.error("Count eligible error:", err);
+      }
+    }
+
+    // 4. กระดานแสดงรายชื่อผู้ได้รับรางวัลแบบ Real-time ด้านขวา
+    async function loadWinners() {
+      try {
+        const res = await fetch(`${API}/winners`);
+        const winners = await res.json();
+        
+        document.getElementById('winnersCount').textContent = winners.length;
+        const feed = document.getElementById('winnersFeed');
+
+        if (winners.length === 0) {
+          feed.innerHTML = `
+            <div class="text-center py-16 text-slate-400 space-y-2">
+              <span class="text-3xl block">🎁</span>
+              <p class="text-xs">ยังไม่มีผู้ได้รับรางวัล</p>
+            </div>
+          `;
+          return;
+        }
+
+        feed.innerHTML = winners.map(w => {
+          const displayName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim() || w.employee_name;
+          const time = new Date(w.won_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+          return `
+            <div class="bg-white border border-pink-100 hover:border-pink-300 rounded-xl p-3 space-y-1.5 transition-all shadow-sm group">
+              <div class="flex justify-between items-start gap-1.5">
+                <span class="bg-pink-50 border border-pink-200 text-pink-600 font-bold text-[11px] px-2 py-0.5 rounded">
+                  🎁 ${w.prize_name}
+                </span>
+                <span class="text-[10px] text-slate-400 font-mono">${time} น.</span>
+              </div>
+              <div>
+                <div class="font-bold text-slate-800 text-sm leading-snug group-hover:text-pink-600 transition">
+                  ${displayName}
+                </div>
+                <div class="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
+                  <span>🎖️ ${w.department || '-'}</span>
+                  <span class="font-mono text-slate-400">${w.emp_code || ''}</span>
+                </div>
+              </div>
+              <div class="pt-1 border-t border-pink-100 flex justify-end">
+                <button type="button" onclick="cancelWinnerFromFeed(${w.id}, '${displayName}', '${w.prize_name}')" class="text-[10px] text-rose-500 hover:text-rose-600 hover:underline">
+                  ❌ สละสิทธิ์ / จับใหม่
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error("Error loading winners:", err);
+      }
+    }
+
+    // 5. สุ่มจับฉลาก (รองรับ 1 - 10 คนพร้อมกัน)
+    async function runDraw() {
+      if (isDrawing) return;
+
+      if (!selectedPrizeId) {
+        // หากยังไม่ได้เลือกรางวัล ให้ลองเลือกรางวัลแรกที่ยังมีของเหลือ
+        const available = allPrizes.find(p => p.remaining_amount > 0);
+        if (available) {
+          selectPrize(available.id);
+        } else {
+          alert('กรุณาคลิกเลือกของรางวัลที่ต้องการสุ่มทางฝั่งซ้ายมือก่อนครับ');
+          return;
+        }
+      }
+
+      sfx.init();
+      isDrawing = true;
+      const btn = document.getElementById('drawBtn');
+      btn.disabled = true;
+
+      const countToDraw = drawCount || parseInt(document.getElementById('drawCountInput')?.value, 10) || 1;
+      const display = document.getElementById('displayName');
+      const dept = document.getElementById('displayDept');
+      const note = document.getElementById('drawStatusNote');
+
+      note.textContent = `กำลังสุ่มผู้โชคดีพร้อมกัน ${countToDraw} ท่าน...`;
+
+      // อนิเมชันวิ่งตัวเลขสุ่ม พร้อมเสียง Ticking
+      const rollInterval = setInterval(() => {
+        sfx.playTick();
+        if (countToDraw === 1) {
+          display.innerHTML = `<span class="pink-gradient-text text-4xl sm:text-5xl animate-pulse">กำลังสุ่ม... (${Math.floor(Math.random() * 89999 + 10000)})</span>`;
+          dept.textContent = `สังกัด: กำลังประมวลผล...`;
+        } else {
+          display.innerHTML = `<span class="pink-gradient-text text-3xl sm:text-4xl animate-pulse">กำลังสุ่ม ${countToDraw} ท่านพร้อมกัน...</span>`;
+          dept.textContent = `สุ่มรหัส: ${Array.from({length: countToDraw}, () => Math.floor(Math.random()*899+100)).join(' • ')}`;
+        }
+      }, 50);
+
+      try {
+        const depts = getSelectedDepartments();
+        const res = await fetch(`${API}/draw`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            prize_id: selectedPrizeId,
+            departments: depts,
+            count: countToDraw
+          })
+        });
+
+        const data = await res.json();
+
+        setTimeout(() => {
+          clearInterval(rollInterval);
+          isDrawing = false;
+
+          if (!res.ok) {
+            alert(data.error || 'เกิดข้อผิดพลาดในการสุ่ม');
+            display.textContent = "เกิดข้อผิดพลาด";
+            dept.textContent = "";
+            note.textContent = data.error || "ลองใหม่อีกครั้ง";
+            btn.disabled = false;
+          } else {
+            // เล่นเสียง Fanfare เฉลิมฉลอง
+            sfx.playFanfare();
+
+            // เก็บรายการผู้ได้รับรางวัลในรอบนี้
+            currentBatchWinners = data.winner_ids || [];
+
+            if (data.count === 1) {
+              display.innerHTML = `<span class="pink-gradient-text">${data.winner.name}</span>`;
+              dept.textContent = `🎖️ สังกัด: ${data.winner.department}`;
+            } else {
+              display.innerHTML = `<span class="pink-gradient-text">🎉 ยินดีกับทั้ง ${data.count} ท่าน!</span>`;
+              dept.textContent = `${data.winners.map(w => w.name).slice(0, 3).join(', ')}${data.count > 3 ? '...' : ''}`;
+            }
+
+            note.textContent = `🎉 ได้รับรางวัล: ${data.prize.name} (${data.count} รางวัล)`;
+
+            // แสดงใน Modal แบบกลุ่ม
+            showWinnersModal(data.prize, data.winners, data.winner_ids);
+
+            // จุดพลุกระดาษเฉลิมฉลอง (โทนชมพู ม่วง ทอง ขาว)
+            confetti({
+              particleCount: 160 + (countToDraw * 15),
+              spread: 200,
+              origin: { y: 0.6 },
+              colors: ['#ec4899', '#f472b6', '#d946ef', '#a855f7', '#fbbf24', '#ffffff']
+            });
+            setTimeout(() => {
+              confetti({
+                particleCount: 100,
+                angle: 60,
+                spread: 80,
+                origin: { x: 0 },
+                colors: ['#ec4899', '#f472b6', '#d946ef', '#a855f7', '#fbbf24']
+              });
+              confetti({
+                particleCount: 100,
+                angle: 120,
+                spread: 80,
+                origin: { x: 1 },
+                colors: ['#ec4899', '#f472b6', '#d946ef', '#a855f7', '#fbbf24']
+              });
+            }, 300);
+
+            // รีเฟรชข้อมูลของรางวัลและผู้ชนะทั้งหมด
+            loadAllPrizes();
+            loadWinners();
+            updateEligibleCount();
+          }
+        }, 2200);
+
+      } catch (err) {
+        clearInterval(rollInterval);
+        isDrawing = false;
+        alert('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+        display.textContent = "เชื่อมต่อไม่สำเร็จ";
+        btn.disabled = false;
+      }
+    }
+
+    // แสดง Modal ผู้โชคดี (รองรับทั้ง 1 คน และหลายคน)
+    function showWinnersModal(prize, winners, winnerIds) {
+      document.getElementById('modalPrizeName').textContent = prize.name;
+      document.getElementById('modalBatchCountText').textContent = `ผู้โชคดีทั้งหมด ${winners.length} ท่าน (รอบนี้)`;
+      
+      const container = document.getElementById('modalWinnersContainer');
+      
+      const gridClass = winners.length > 1 ? "grid grid-cols-1 sm:grid-cols-2 gap-2.5" : "space-y-2";
+      container.className = `flex-1 overflow-y-auto pr-1 max-h-[380px] custom-scrollbar ${gridClass}`;
+
+      container.innerHTML = winners.map((w, idx) => {
+        const winnerId = (winnerIds && winnerIds[idx]) ? winnerIds[idx].winner_id : null;
+        return `
+          <div id="modal-card-${winnerId}" class="winner-card-pink rounded-2xl p-3.5 space-y-1.5 shadow-sm text-left relative group">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-bold text-pink-600 bg-pink-50 border border-pink-200 px-2 py-0.5 rounded">ลำดับ #${idx + 1}</span>
+              ${winnerId ? `
+                <button type="button" onclick="voidSingleWinnerFromModal(${winnerId}, '${w.name}', 'absent')" class="text-[10px] text-rose-500 hover:text-rose-600 hover:underline">
+                  ❌ ไม่อยู่ในงาน
+                </button>
+              ` : ''}
+            </div>
+            <div class="text-lg font-black text-slate-800 truncate">${w.name}</div>
+            <div class="text-xs text-pink-600 font-bold truncate">🎖️ สังกัด: ${w.department || '-'}</div>
+            <div class="text-[11px] font-mono text-slate-400">รหัส: ${w.emp_code || '-'}</div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('winnerModal').classList.remove('hidden');
+    }
+
+    // ยืนยันรับรางวัลทั้งหมด
+    function confirmAllWinners() {
+      document.getElementById('winnerModal').classList.add('hidden');
+      document.getElementById('drawBtn').disabled = false;
+      currentBatchWinners = [];
+    }
+
+    // สละสิทธิ์เฉพาะคนใดคนหนึ่งใน Modal
+    async function voidSingleWinnerFromModal(winnerId, name, status) {
+      if (!confirm(`ยืนยันว่า ${name} ไม่อยู่ในงาน ต้องการสละสิทธิ์คนนี้ใช่หรือไม่?`)) return;
+
+      try {
+        const res = await fetch(`${API}/winners/${winnerId}/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ new_status: status })
+        });
+
+        if (res.ok) {
+          const card = document.getElementById(`modal-card-${winnerId}`);
+          if (card) {
+            card.classList.add('opacity-40', 'line-through');
+            card.innerHTML += `<div class="text-center font-bold text-xs text-rose-400 mt-1">❌ สละสิทธิ์แล้ว (ของรางวัลคืนระบบ +1)</div>`;
+          }
+          loadAllPrizes();
+          loadWinners();
+          updateEligibleCount();
+        } else {
+          alert('เกิดข้อผิดพลาดในการยกเลิก');
+        }
+      } catch (err) {
+        alert('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    }
+
+    // สละสิทธิ์ทั้งหมดของรอบนี้ & จับฉลากใหม่ทันที
+    async function voidAllAndRedraw(newStatus) {
+      if (!currentBatchWinners || currentBatchWinners.length === 0) return;
+
+      const confirmText = newStatus === 'absent'
+        ? `ยืนยันว่าผู้โชคดีทั้ง ${currentBatchWinners.length} ท่านไม่อยู่ในงาน ต้องการสละสิทธิ์ทั้งหมดและเริ่มจับฉลากใหม่ใช่หรือไม่?`
+        : `ยืนยันคืนสิทธิ์ผู้โชคดีทั้งหมด และเริ่มจับฉลากใหม่ใช่หรือไม่?`;
+
+      if (!confirm(confirmText)) return;
+
+      try {
+        // ยกเลิกทุกคนใน Batch นี้
+        for (const item of currentBatchWinners) {
+          await fetch(`${API}/winners/${item.winner_id}/cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_status: newStatus })
+          });
+        }
+
+        document.getElementById('winnerModal').classList.add('hidden');
+        await loadAllPrizes();
+        await loadWinners();
+        await updateEligibleCount();
+
+        // เริ่มสุ่มใหม่ทันที!
+        setTimeout(() => {
+          runDraw();
+        }, 400);
+
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการยกเลิกรางวัล');
+      }
+    }
+
+    // ยกเลิกรางวัลจากรายการฝั่งขวาย้อนหลัง
+    async function cancelWinnerFromFeed(winnerId, name, prizeName) {
+      const choice = prompt(`จัดการรางวัล "${prizeName}" ของ ${name}:\nพิมพ์ 1 = ไม่อยู่ในงาน (ตัดสิทธิ์สุ่มใหม่)\nพิมพ์ 2 = โมฆะ (คืนสิทธิ์ให้คนเดิม)`, "1");
+      if (choice === null) return;
+
+      const status = choice === "2" ? "eligible" : "absent";
+
+      try {
+        const res = await fetch(`${API}/winners/${winnerId}/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ new_status: status })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          alert(`✅ ยกเลิกรางวัลของ ${name} เรียบร้อยแล้ว (ของรางวัลถูกส่งคืนระบบ +1)`);
+          loadAllPrizes();
+          loadWinners();
+          updateEligibleCount();
+        } else {
+          alert('❌ ' + (data.error || 'เกิดข้อผิดพลาด'));
+        }
+      } catch (err) {
+        alert('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    }
+
+    // ระบบสลับแท็บบนหน้าจอมือถือ/แท็บเล็ต
+    function setMobileTab(tab) {
+      const panelStage = document.getElementById('panelStage');
+      const panelPrizes = document.getElementById('panelPrizes');
+      const panelWinners = document.getElementById('panelWinners');
+
+      const btnStage = document.getElementById('tabBtnStage');
+      const btnPrizes = document.getElementById('tabBtnPrizes');
+      const btnWinners = document.getElementById('tabBtnWinners');
+
+      // ล้างคลาสแสดงผลบนจอเล็ก
+      panelStage.classList.remove('block', 'hidden');
+      panelPrizes.classList.remove('block', 'hidden', 'flex');
+      panelWinners.classList.remove('block', 'hidden', 'flex');
+
+      btnStage.className = "flex-1 py-2 px-2 rounded-xl font-bold text-slate-600 hover:text-pink-600 transition flex items-center justify-center gap-1";
+      btnPrizes.className = "flex-1 py-2 px-2 rounded-xl font-bold text-slate-600 hover:text-pink-600 transition flex items-center justify-center gap-1";
+      btnWinners.className = "flex-1 py-2 px-2 rounded-xl font-bold text-slate-600 hover:text-pink-600 transition flex items-center justify-center gap-1";
+
+      if (tab === 'stage') {
+        panelStage.classList.add('block');
+        panelPrizes.classList.add('hidden', 'lg:flex');
+        panelWinners.classList.add('hidden', 'lg:flex');
+        btnStage.className = "flex-1 py-2 px-2 rounded-xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 text-white transition flex items-center justify-center gap-1 shadow-md shadow-pink-200";
+      } else if (tab === 'prizes') {
+        panelStage.classList.add('hidden', 'lg:block');
+        panelPrizes.classList.add('flex');
+        panelWinners.classList.add('hidden', 'lg:flex');
+        btnPrizes.className = "flex-1 py-2 px-2 rounded-xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 text-white transition flex items-center justify-center gap-1 shadow-md shadow-pink-200";
+      } else if (tab === 'winners') {
+        panelStage.classList.add('hidden', 'lg:block');
+        panelPrizes.classList.add('hidden', 'lg:flex');
+        panelWinners.classList.add('flex');
+        btnWinners.className = "flex-1 py-2 px-2 rounded-xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 text-white transition flex items-center justify-center gap-1 shadow-md shadow-pink-200";
+      }
+    }
+
+    // ระบบ Stage QR Code Modal
+    async function initServerInfoAndQR() {
+      try {
+        const res = await fetch(`${API}/server-info`);
+        const data = await res.json();
+        const host = data.defaultIp || window.location.hostname || 'localhost';
+        const port = data.port || window.location.port || 3000;
+        serverLanUrl = `http://${host}:${port}/register.html`;
+      } catch (err) {
+        const host = window.location.hostname || 'localhost';
+        const port = window.location.port ? `:${window.location.port}` : '';
+        serverLanUrl = `${window.location.protocol}//${host}${port}/register.html`;
+      }
+
+      // Generate Stage QR code
+      const qrEl = document.getElementById('stageQrcode');
+      if (qrEl) {
+        qrEl.innerHTML = '';
+        new QRCode(qrEl, {
+          text: serverLanUrl,
+          width: 220,
+          height: 220,
+          colorDark: "#020617",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+      const qrLink = document.getElementById('stageQrLink');
+      if (qrLink) {
+        qrLink.href = serverLanUrl;
+        qrLink.textContent = serverLanUrl;
+      }
+    }
+
+    function openStageQRModal() {
+      sfx.playPop();
+      document.getElementById('stageQrModal').classList.remove('hidden');
+    }
+
+    function closeStageQRModal() {
+      document.getElementById('stageQrModal').classList.add('hidden');
+    }
+
+    function copyStageQrUrl() {
+      if (!serverLanUrl) return;
+      navigator.clipboard.writeText(serverLanUrl).then(() => {
+        const btnText = document.getElementById('copyQrBtnText');
+        btnText.textContent = "✅ คัดลอกแล้ว!";
+        setTimeout(() => { btnText.textContent = "📋 คัดลอกลิงก์"; }, 2000);
+      }).catch(() => {
+        prompt("คัดลอกลิงก์:", serverLanUrl);
+      });
+    }
+
+    // Keyboard Shortcuts สำหรับควบคุมเวที
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault();
+        const winnerModal = document.getElementById('winnerModal');
+        if (!winnerModal.classList.contains('hidden')) {
+          confirmAllWinners();
+        } else {
+          runDraw();
+        }
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFullScreen();
+      } else if (e.key === 'q' || e.key === 'Q') {
+        e.preventDefault();
+        const qrModal = document.getElementById('stageQrModal');
+        if (qrModal.classList.contains('hidden')) {
+          openStageQRModal();
+        } else {
+          closeStageQRModal();
+        }
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        toggleAudioMute();
+      } else if (e.key === 'Escape') {
+        closeDeptModal();
+        closeStageQRModal();
+        const winnerModal = document.getElementById('winnerModal');
+        if (!winnerModal.classList.contains('hidden')) {
+          confirmAllWinners();
+        }
+      }
+    });
+
+    // เริ่มต้นทำงาน
+    loadAllPrizes();
+    loadDepartments();
+    loadWinners();
+    initServerInfoAndQR();
+
+    // ตั้งค่าหน้าจอเริ่มต้นสำหรับอุปกรณ์พกพา
+    if (window.innerWidth < 1024) {
+      setMobileTab('stage');
+    }
+
+    // รีเฟรชผู้ได้รับรางวัลอัตโนมัติทุก 10 วินาที
+    setInterval(loadWinners, 10000);
+  </script>
+</body>
+</html>
