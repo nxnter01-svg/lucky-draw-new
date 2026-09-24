@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin - ระบบจัดการจับฉลาก</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -43,7 +42,7 @@
             <div class="text-xs text-rose-800 mt-0.5">กรุณาตรวจสอบว่าได้รันคำสั่ง <code class="bg-rose-100 text-rose-900 px-1.5 py-0.5 rounded font-mono font-bold">node server.js</code> ในโฟลเดอร์โปรเจกต์แล้ว</div>
           </div>
         </div>
-        <button onclick="loadData(); initServerInfoAndQr();" class="bg-rose-600 hover:bg-rose-700 text-white font-black text-xs px-4 py-2 rounded-xl shadow transition whitespace-nowrap flex items-center gap-1.5">
+        <button onclick="loadData(); initServerInfo();" class="bg-rose-600 hover:bg-rose-700 text-white font-black text-xs px-4 py-2 rounded-xl shadow transition whitespace-nowrap flex items-center gap-1.5">
           🔄 ลองเชื่อมต่อใหม่
         </button>
       </div>
@@ -94,37 +93,6 @@
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
         <div class="text-xs font-bold text-purple-600 uppercase">🎁 รางวัลคงเหลือ / ทั้งหมด</div>
         <div id="statPrizes" class="text-2xl sm:text-3xl font-black text-purple-600 mt-1">0 / 0</div>
-      </div>
-    </div>
-
-    <!-- ส่วน QR Code -->
-    <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
-      <div class="space-y-3 max-w-xl">
-        <div class="flex items-center gap-2">
-          <span class="text-2xl">📲</span>
-          <h2 class="text-2xl font-bold text-amber-400">QR Code ลงทะเบียน (ทุกอุปกรณ์)</h2>
-        </div>
-        <p class="text-sm text-slate-300">
-          ผู้เข้าร่วมงานสามารถสแกนด้วยสมาร์ตโฟน (iOS/Android) ในวง Wi-Fi หรือ LAN เดียวกันเพื่อลงทะเบียนรับรหัสสุ่ม
-        </p>
-        <div class="flex flex-wrap gap-2 items-center bg-slate-800 p-2.5 rounded-xl border border-slate-700">
-          <span class="text-xs text-slate-400 font-bold whitespace-nowrap">IP เครื่องเซิร์ฟเวอร์:</span>
-          <select id="lanIpSelect" onchange="onIpSelectChange()" class="bg-slate-900 text-amber-300 text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 focus:outline-none font-mono font-bold"></select>
-          <input type="text" id="serverIp" class="bg-slate-900 text-amber-300 text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 focus:outline-none font-mono" placeholder="IP หรือ Hostname">
-          <button onclick="generateQRCode()" class="bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-amber-400 transition shadow">สร้าง QR ใหม่</button>
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <button onclick="copyQrLink()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
-            <span id="copyAdminQrText">📋 คัดลอกลิงก์</span>
-          </button>
-          <button onclick="downloadQRCode()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1">
-            💾 บันทึกภาพ QR Code
-          </button>
-        </div>
-      </div>
-      <div class="bg-white p-4 rounded-2xl shadow-lg flex flex-col items-center">
-        <div id="qrcode"></div>
-        <a id="qrLink" href="#" target="_blank" class="text-xs text-blue-600 mt-2 font-bold hover:underline">ทดสอบเปิดหน้าลงทะเบียน</a>
       </div>
     </div>
 
@@ -429,97 +397,18 @@
       }, 3000);
     }
 
-    // ระบบตรวจหา IP และสร้าง QR Code อัตโนมัติ
-    async function initServerInfoAndQr() {
+    // ระบบตรวจหาข้อมูลเซิร์ฟเวอร์
+    async function initServerInfo() {
       try {
         const res = await fetch(`${API}/server-info`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         serverPort = data.port || DEFAULT_PORT;
-
-        const select = document.getElementById('lanIpSelect');
-        select.innerHTML = '';
-        
-        if (data.addresses && data.addresses.length > 0) {
-          data.addresses.forEach(addr => {
-            const opt = document.createElement('option');
-            opt.value = addr.address;
-            opt.textContent = `${addr.address} (${addr.iface})`;
-            select.appendChild(opt);
-          });
-          document.getElementById('serverIp').value = data.defaultIp || data.addresses[0].address;
-        } else {
-          document.getElementById('serverIp').value = isFile ? 'localhost' : (window.location.hostname || 'localhost');
-        }
         hideConnectionError();
       } catch (err) {
         console.warn("Cannot fetch server-info:", err);
-        document.getElementById('serverIp').value = isFile ? 'localhost' : (window.location.hostname || 'localhost');
         showConnectionError();
       }
-      generateQRCode();
-    }
-
-    function onIpSelectChange() {
-      const select = document.getElementById('lanIpSelect');
-      if (select.value) {
-        document.getElementById('serverIp').value = select.value;
-        generateQRCode();
-      }
-    }
-
-    function generateQRCode() {
-      let host = document.getElementById('serverIp').value.trim();
-      if (!host || host === '0.0.0.0') {
-        host = isFile ? 'localhost' : (window.location.hostname || 'localhost');
-      }
-      const portPart = serverPort ? `:${serverPort}` : '';
-      registeredUrl = `http://${host}${portPart}/register.html`;
-
-      const qrContainer = document.getElementById('qrcode');
-      qrContainer.innerHTML = "";
-      new QRCode(qrContainer, {
-        text: registeredUrl,
-        width: 140,
-        height: 140,
-        colorDark: "#020617",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
-      });
-
-      const qrLink = document.getElementById('qrLink');
-      qrLink.href = registeredUrl;
-      qrLink.textContent = registeredUrl;
-    }
-
-    function copyQrLink() {
-      if (!registeredUrl) return;
-      navigator.clipboard.writeText(registeredUrl).then(() => {
-        const span = document.getElementById('copyAdminQrText');
-        span.textContent = "✅ คัดลอกแล้ว!";
-        setTimeout(() => { span.textContent = "📋 คัดลอกลิงก์"; }, 2000);
-      }).catch(() => {
-        prompt("คัดลอกลิงก์:", registeredUrl);
-      });
-    }
-
-    function downloadQRCode() {
-      const qrCanvas = document.querySelector('#qrcode canvas');
-      const qrImg = document.querySelector('#qrcode img');
-      let dataUrl = null;
-      if (qrCanvas) {
-        dataUrl = qrCanvas.toDataURL("image/png");
-      } else if (qrImg && qrImg.src) {
-        dataUrl = qrImg.src;
-      }
-      if (!dataUrl) {
-        alert("ยังไม่มีรูป QR Code ให้ดาวน์โหลด");
-        return;
-      }
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = `lucky-draw-qr-${document.getElementById('serverIp').value || 'register'}.png`;
-      a.click();
     }
 
     // ฟังก์ชันเปิด/ปิด Modal จัดการยศ
@@ -1330,8 +1219,8 @@
       }
     };
 
-    // เริ่มต้นทำงาน: ดึงข้อมูล Server Info และสร้าง QR Code อัตโนมัติ
-    initServerInfoAndQr();
+    // เริ่มต้นทำงาน: ดึงข้อมูล Server Info
+    initServerInfo();
     loadData();
   </script>
 </body>
