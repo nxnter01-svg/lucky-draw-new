@@ -23,6 +23,11 @@ app.get('/screen', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'display.html'));
 });
 
+// Route aliases for Admin dashboard
+app.get(['/ICTAdMin.html', '/ictadmin.html', '/ICTAdMin', '/ictadmin'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'ICTAdMin.html'));
+});
+
 // Stage sync state for multi-screen sync (stage.html controller <-> display.html big screen)
 let stageState = {
   selectedPrizeId: null,
