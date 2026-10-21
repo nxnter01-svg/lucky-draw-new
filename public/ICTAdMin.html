@@ -135,6 +135,17 @@
           </div>
           <p class="text-[11px] text-slate-400 -mt-1">⚠️ ชื่อ-สกุล ห้ามเว้นวรรค/อักขระพิเศษ</p>
           <select id="empDeptSelect" class="w-full border p-2 rounded focus:outline-blue-500" required></select>
+
+          <!-- ตัวเลือกระบุจำพวกพิเศษ -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">🏷️ จำพวกพิเศษ:</label>
+            <select id="empSpecialType" class="w-full border p-2 rounded focus:outline-blue-500 text-xs font-bold bg-white text-slate-800">
+              <option value="ปกติ">🟢 ปกติ / ทั่วไป</option>
+              <option value="เข้าเวร">🛡️ เข้าเวร</option>
+              <option value="ไปราชการ">✈️ ไปราชการ</option>
+            </select>
+          </div>
+
           <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-bold">บันทึก</button>
         </form>
       </div>
@@ -143,9 +154,45 @@
       <div class="bg-white p-6 rounded-xl shadow space-y-4 border-t-4 border-emerald-500">
         <h2 class="text-xl font-bold">🎁 เพิ่มรางวัล</h2>
         <form id="prizeForm" class="space-y-3">
-          <input type="text" id="prizeName" placeholder="ชื่อรางวัล" class="w-full border p-2 rounded focus:outline-emerald-500" required>
-          <input type="number" id="prizeAmount" placeholder="จำนวน" class="w-full border p-2 rounded focus:outline-emerald-500" min="1" required>
-          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-bold">บันทึก</button>
+          <input type="text" id="prizeName" placeholder="ชื่อรางวัล" class="w-full border p-2 rounded focus:outline-emerald-500 text-sm" required>
+          <input type="number" id="prizeAmount" placeholder="จำนวน" class="w-full border p-2 rounded focus:outline-emerald-500 text-sm" min="1" required>
+
+          <!-- อัปโหลดรูปภาพของรางวัล -->
+          <div class="space-y-1.5 pt-1">
+            <label class="text-xs font-bold text-slate-700 flex items-center justify-between">
+              <span>🖼️ รูปภาพรางวัล (ขึ้นจอใหญ่):</span>
+              <span class="text-[10px] text-slate-400 font-normal">ไม่บังคับ</span>
+            </label>
+            <input type="file" id="prizeImageInput" accept="image/*" class="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer border rounded-lg p-1 bg-slate-50">
+            <!-- กล่องพรีวิวรูป -->
+            <div id="prizeImagePreviewBox" class="hidden items-center gap-2.5 p-2 bg-emerald-50/80 border border-emerald-200 rounded-xl">
+              <img id="prizeImagePreviewImg" src="" alt="พรีวิว" class="w-12 h-12 object-cover rounded-lg border border-emerald-300 shadow-sm bg-white shrink-0">
+              <div class="flex-1 min-w-0 text-xs">
+                <div id="prizeImageInfoText" class="font-bold text-slate-700 truncate">รูปที่เลือก</div>
+                <button type="button" onclick="clearPrizeImagePreview()" class="text-rose-600 hover:underline text-[11px] font-bold mt-0.5">✕ นำรูปออก</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- กำหนดสิทธิสุ่มรางวัลนี้ -->
+          <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+            <div class="font-bold text-slate-700 flex items-center gap-1">
+              <span>🎯 สิทธิสุ่มรางวัลนี้:</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700 bg-white p-2 rounded-lg border border-slate-200 hover:border-emerald-400 shadow-sm">
+                <input type="checkbox" id="prizeAllowOnDuty" checked class="w-4 h-4 text-emerald-600 rounded">
+                <span>🛡️ เข้าเวร (มีสิทธิ์)</span>
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700 bg-white p-2 rounded-lg border border-slate-200 hover:border-emerald-400 shadow-sm">
+                <input type="checkbox" id="prizeAllowMission" checked class="w-4 h-4 text-emerald-600 rounded">
+                <span>✈️ ไปราชการ (มีสิทธิ์)</span>
+              </label>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight">* ปลดเครื่องหมายถูกออก หากต้องการตัดสิทธิ์กลุ่มนั้นสำหรับรางวัลนี้</p>
+          </div>
+
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-bold transition">บันทึกของรางวัล</button>
         </form>
       </div>
 
@@ -167,12 +214,23 @@
               ✨ เรียงตาม: ลำดับยศ ➔ ชื่อ (ก-ฮ)
             </span>
           </div>
-          <!-- ส่วนเลือกสังกัด เพื่อแยกรายชื่อตามสังกัด -->
-          <div class="flex items-center gap-2">
-            <label for="filterDeptSelect" class="text-xs font-bold text-slate-600 whitespace-nowrap">แยกตามสังกัด:</label>
-            <select id="filterDeptSelect" onchange="renderEmployees()" class="w-full text-xs border border-slate-300 rounded-lg p-2 bg-slate-50 font-bold text-slate-800 focus:outline-blue-500">
-              <option value="all">🏢 แสดงทุกสังกัด (แยกเป็นรายสังกัด)</option>
-            </select>
+          <!-- ส่วนเลือกสังกัด และ จำพวกพิเศษ เพื่อกรองรายชื่อ -->
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2">
+              <label for="filterDeptSelect" class="text-xs font-bold text-slate-600 whitespace-nowrap">แยกตามสังกัด:</label>
+              <select id="filterDeptSelect" onchange="renderEmployees()" class="w-full text-xs border border-slate-300 rounded-lg p-1.5 bg-slate-50 font-bold text-slate-800 focus:outline-blue-500">
+                <option value="all">🏢 แสดงทุกสังกัด (แยกเป็นรายสังกัด)</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2">
+              <label for="filterSpecialSelect" class="text-xs font-bold text-slate-600 whitespace-nowrap">จำพวกพิเศษ:</label>
+              <select id="filterSpecialSelect" onchange="renderEmployees()" class="w-full text-xs border border-slate-300 rounded-lg p-1.5 bg-slate-50 font-bold text-slate-800 focus:outline-blue-500">
+                <option value="all">🌐 แสดงทุกจำพวก</option>
+                <option value="ปกติ">🟢 ปกติ / ทั่วไป</option>
+                <option value="เข้าเวร">🛡️ เฉพาะเข้าเวร</option>
+                <option value="ไปราชการ">✈️ เฉพาะไปราชการ</option>
+              </select>
+            </div>
           </div>
         </div>
         <!-- แสดงรายการพนักงานแยกตามสังกัด -->
@@ -677,26 +735,44 @@
 
     let allEmployees = [];
 
-    // ฟังก์ชันแสดงผลรายชื่อพนักงานแยกตามสังกัด
+    // ฟังก์ชันแสดงผลรายชื่อพนักงานแยกตามสังกัด และจำพวกพิเศษ
     function renderEmployees() {
       const filter = filterDeptSelect.value;
+      const specialFilter = document.getElementById('filterSpecialSelect') ? document.getElementById('filterSpecialSelect').value : 'all';
       const container = document.getElementById('empContainer');
-      document.getElementById('totalEmpCount').textContent = allEmployees.length;
 
-      if (allEmployees.length === 0) {
-        container.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">ยังไม่มีรายชื่อลงทะเบียนในระบบ</div>`;
+      // กรองตามจำพวกพิเศษ
+      let filteredEmployees = allEmployees;
+      if (specialFilter !== 'all') {
+        filteredEmployees = filteredEmployees.filter(e => (e.special_type || 'ปกติ') === specialFilter);
+      }
+
+      document.getElementById('totalEmpCount').textContent = filteredEmployees.length;
+
+      if (filteredEmployees.length === 0) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">ไม่พบรายชื่อในเงื่อนไขที่เลือก</div>`;
         return;
       }
 
       // จัดกลุ่มพนักงานตามสังกัด
       const groups = {};
-      allEmployees.forEach(e => {
+      filteredEmployees.forEach(e => {
         const dept = e.department || 'ไม่ระบุสังกัด';
         if (!groups[dept]) groups[dept] = [];
         groups[dept].push(e);
       });
 
       let html = '';
+
+      const getSpecialBadge = (e) => {
+        if (e.special_type === 'เข้าเวร') {
+          return '<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] px-1.5 py-0.5 rounded font-black shadow-sm">🛡️ เข้าเวร</span>';
+        }
+        if (e.special_type === 'ไปราชการ') {
+          return '<span class="bg-indigo-100 text-indigo-900 border border-indigo-300 text-[10px] px-1.5 py-0.5 rounded font-black shadow-sm">✈️ ไปราชการ</span>';
+        }
+        return '';
+      };
 
       // กรณีเลือกเฉพาะสังกัดใดสังกัดหนึ่ง
       if (filter !== 'all') {
@@ -724,6 +800,7 @@
                           <span class="text-[10px] text-slate-400 font-bold">#${idx + 1}</span>
                           <span class="font-mono font-bold text-slate-500 text-xs">${e.emp_code || '-'}</span>
                           ${e.rank ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[11px] px-1.5 py-0.5 rounded font-bold leading-none">${e.rank}</span>` : ''}
+                          ${getSpecialBadge(e)}
                           ${e.status === 'won' ? '<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold">🏆 ได้รางวัลแล้ว</span>' : ''}
                         </div>
                         <div class="font-bold text-slate-800 text-sm mt-0.5">
@@ -762,6 +839,7 @@
                           <span class="text-[10px] text-slate-400 font-bold">#${idx + 1}</span>
                           <span class="font-mono font-bold text-slate-500 text-xs">${e.emp_code || '-'}</span>
                           ${e.rank ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] px-1.5 py-0.5 rounded font-bold leading-none">${e.rank}</span>` : ''}
+                          ${getSpecialBadge(e)}
                           ${e.status === 'won' ? '<span class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.5 rounded font-bold">🏆 ได้รางวัลแล้ว</span>' : ''}
                         </div>
                         <div class="font-medium text-slate-800 text-xs mt-0.5">
@@ -825,7 +903,40 @@
         if (prizeTable) {
           prizeTable.innerHTML = prizes.length === 0
             ? '<tr><td colspan="2" class="text-center py-4 text-slate-400 text-xs">ยังไม่มีข้อมูลของรางวัล</td></tr>'
-            : prizes.map(p => `<tr><td class="py-2 font-medium text-slate-800">${p.name} <br><span class="text-xs text-slate-500">เหลือ ${p.remaining_amount}/${p.total_amount}</span></td><td class="text-right py-2"><button onclick="deleteData('/prizes/${p.id}')" class="text-red-500 hover:text-red-700 font-bold text-xs bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition">ลบ</button></td></tr>`).join('');
+            : prizes.map(p => {
+                const onDutyActive = p.allow_on_duty !== 0;
+                const missionActive = p.allow_mission !== 0;
+                return `
+                  <tr class="hover:bg-slate-50 transition border-b border-gray-100">
+                    <td class="py-2.5 pr-2">
+                      <div class="flex items-start gap-2.5">
+                        ${p.image_url 
+                          ? `<img src="${p.image_url}" class="w-12 h-12 object-cover rounded-xl border border-slate-200 shadow-sm shrink-0 mt-0.5 bg-white">` 
+                          : `<div class="w-12 h-12 rounded-xl bg-pink-50 border border-pink-200 flex items-center justify-center text-xl shrink-0 mt-0.5">🎁</div>`
+                        }
+                        <div class="min-w-0 flex-1">
+                          <div class="font-bold text-slate-800 text-sm leading-tight">${p.name}</div>
+                          <div class="text-xs text-slate-500 font-semibold mt-0.5">
+                            คงเหลือ <span class="font-bold text-emerald-600">${p.remaining_amount}</span> / ${p.total_amount} ชิ้น
+                          </div>
+                          <!-- ป้ายสิทธิ์สุ่มรางวัลนี้ -->
+                          <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            <button type="button" onclick="togglePrizePermission(${p.id}, 'duty', ${onDutyActive ? 0 : 1})" title="คลิกเพื่อเปิด/ปิดสิทธิ์คนเข้าเวร" class="text-[10px] font-bold px-1.5 py-0.5 rounded border transition flex items-center gap-1 shadow-sm ${onDutyActive ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100' : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 line-through'}">
+                              🛡️ เข้าเวร: ${onDutyActive ? 'มีสิทธิ์' : 'ตัดสิทธิ์'}
+                            </button>
+                            <button type="button" onclick="togglePrizePermission(${p.id}, 'mission', ${missionActive ? 0 : 1})" title="คลิกเพื่อเปิด/ปิดสิทธิ์คนไปราชการ" class="text-[10px] font-bold px-1.5 py-0.5 rounded border transition flex items-center gap-1 shadow-sm ${missionActive ? 'bg-indigo-50 text-indigo-800 border-indigo-300 hover:bg-indigo-100' : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 line-through'}">
+                              ✈️ ไปราชการ: ${missionActive ? 'มีสิทธิ์' : 'ตัดสิทธิ์'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-right py-2.5 pl-2 align-top whitespace-nowrap">
+                      <button onclick="deleteData('/prizes/${p.id}')" class="text-red-500 hover:text-red-700 font-bold text-xs bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg border border-red-200 transition">ลบ</button>
+                    </td>
+                  </tr>
+                `;
+              }).join('');
         }
 
         // อัปเดตสถิติภาพรวม
@@ -957,7 +1068,7 @@
         alert('ยังไม่มีข้อมูลพนักงานให้ส่งออก');
         return;
       }
-      const headers = ['ลำดับ', 'รหัสประจำตัว', 'ยศ', 'ชื่อ', 'นามสกุล', 'ชื่อเต็ม', 'สังกัด', 'สถานะ'];
+      const headers = ['ลำดับ', 'รหัสประจำตัว', 'ยศ', 'ชื่อ', 'นามสกุล', 'ชื่อเต็ม', 'สังกัด', 'จำพวกพิเศษ', 'สถานะ'];
       const rows = allEmployees.map((e, idx) => [
         idx + 1,
         `"${e.emp_code || ''}"`,
@@ -966,6 +1077,7 @@
         `"${e.last_name || ''}"`,
         `"${e.first_name ? `${e.rank ? e.rank + ' ' : ''}${e.first_name} ${e.last_name || ''}`.trim() : (e.name || '')}"`,
         `"${e.department || ''}"`,
+        `"${e.special_type || 'ปกติ'}"`,
         `"${e.status === 'won' ? 'ได้รับรางวัลแล้ว' : (e.status === 'absent' ? 'สละสิทธิ์' : 'มีสิทธิ์ลุ้น')}"`
       ]);
 
@@ -1006,19 +1118,22 @@
         let parts = line.includes(',') ? line.split(',') : line.split('\t');
         parts = parts.map(p => p.trim());
 
-        if (parts.length >= 4) {
-          employees.push({ rank: parts[0], first_name: parts[1], last_name: parts[2], department: parts[3] });
+        if (parts.length >= 5) {
+          const sp = (parts[4] === 'เข้าเวร' || parts[4] === 'ไปราชการ') ? parts[4] : 'ปกติ';
+          employees.push({ rank: parts[0], first_name: parts[1], last_name: parts[2], department: parts[3], special_type: sp });
+        } else if (parts.length === 4) {
+          employees.push({ rank: parts[0], first_name: parts[1], last_name: parts[2], department: parts[3], special_type: 'ปกติ' });
         } else if (parts.length === 3) {
-          employees.push({ first_name: parts[0], last_name: parts[1], department: parts[2] });
+          employees.push({ first_name: parts[0], last_name: parts[1], department: parts[2], special_type: 'ปกติ' });
         } else if (parts.length === 2) {
           const nameParts = parts[0].split(' ').filter(Boolean);
           if (nameParts.length >= 2) {
-            employees.push({ first_name: nameParts[0], last_name: nameParts.slice(1).join(' '), department: parts[1] });
+            employees.push({ first_name: nameParts[0], last_name: nameParts.slice(1).join(' '), department: parts[1], special_type: 'ปกติ' });
           } else {
-            employees.push({ name: parts[0], department: parts[1] });
+            employees.push({ name: parts[0], department: parts[1], special_type: 'ปกติ' });
           }
         } else {
-          employees.push({ name: parts[0], department: 'ทั่วไป' });
+          employees.push({ name: parts[0], department: 'ทั่วไป', special_type: 'ปกติ' });
         }
       });
 
@@ -1160,6 +1275,7 @@
       }
 
       try {
+        const specialType = document.getElementById('empSpecialType') ? document.getElementById('empSpecialType').value : 'ปกติ';
         const res = await fetch(`${API}/employees`, { 
           method: 'POST', 
           headers: {'Content-Type':'application/json'}, 
@@ -1167,7 +1283,8 @@
             rank,
             first_name: firstName,
             last_name: lastName,
-            department
+            department,
+            special_type: specialType
           }) 
         });
 
@@ -1187,6 +1304,110 @@
       }
     };
 
+    // ตัวแปรและฟังก์ชันจัดการรูปภาพรางวัล
+    let currentPrizeImageData = null;
+    const prizeImageInput = document.getElementById('prizeImageInput');
+    const prizeImagePreviewBox = document.getElementById('prizeImagePreviewBox');
+    const prizeImagePreviewImg = document.getElementById('prizeImagePreviewImg');
+    const prizeImageInfoText = document.getElementById('prizeImageInfoText');
+
+    if (prizeImageInput) {
+      prizeImageInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+          alert('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+          prizeImageInput.value = '';
+          return;
+        }
+
+        try {
+          currentPrizeImageData = await compressImageFile(file, 800, 800, 0.82);
+          prizeImagePreviewImg.src = currentPrizeImageData;
+          prizeImageInfoText.textContent = `${file.name} (~${Math.round(currentPrizeImageData.length / 1024)} KB)`;
+          prizeImagePreviewBox.classList.remove('hidden');
+          prizeImagePreviewBox.classList.add('flex');
+        } catch (err) {
+          console.error(err);
+          alert('เกิดข้อผิดพลาดในการโหลดรูปภาพ');
+        }
+      });
+    }
+
+    function clearPrizeImagePreview() {
+      currentPrizeImageData = null;
+      if (prizeImageInput) prizeImageInput.value = '';
+      if (prizeImagePreviewBox) {
+        prizeImagePreviewBox.classList.add('hidden');
+        prizeImagePreviewBox.classList.remove('flex');
+      }
+    }
+
+    function compressImageFile(file, maxWidth, maxHeight, quality) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            let dataUrl = canvas.toDataURL('image/webp', quality);
+            if (!dataUrl || dataUrl.startsWith('data:image/webp') === false) {
+              dataUrl = canvas.toDataURL('image/jpeg', quality);
+            }
+            resolve(dataUrl);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ฟังก์ชันสลับสิทธิ์ผู้มีสิทธิ์ลุ้นรางวัล (เข้าเวร / ไปราชการ)
+    async function togglePrizePermission(prizeId, type, newStatus) {
+      try {
+        const payload = {};
+        if (type === 'duty') payload.allow_on_duty = newStatus;
+        if (type === 'mission') payload.allow_mission = newStatus;
+
+        const res = await fetch(`${API}/prizes/${prizeId}/permissions`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          loadData();
+        } else {
+          const data = await res.json();
+          alert('❌ ' + (data.error || 'เกิดข้อผิดพลาดในการเปลี่ยนสิทธิ์'));
+        }
+      } catch (err) {
+        alert('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    }
+
     // เวลากดเพิ่มรางวัล
     document.getElementById('prizeForm').onsubmit = async (e) => { 
       e.preventDefault(); 
@@ -1196,13 +1417,19 @@
       const amount = parseInt(amountInput.value, 10);
       if (!name || isNaN(amount) || amount <= 0) return;
 
+      const allowOnDuty = document.getElementById('prizeAllowOnDuty').checked ? 1 : 0;
+      const allowMission = document.getElementById('prizeAllowMission').checked ? 1 : 0;
+
       try {
         const res = await fetch(`${API}/prizes`, { 
           method: 'POST', 
           headers: {'Content-Type':'application/json'}, 
           body: JSON.stringify({ 
             name, 
-            total_amount: amount 
+            total_amount: amount,
+            image_url: currentPrizeImageData,
+            allow_on_duty: allowOnDuty,
+            allow_mission: allowMission
           }) 
         });
         const data = await res.json();
@@ -1210,6 +1437,7 @@
           showToast(`บันทึกรางวัล "${name}" จำนวน ${amount} ชิ้น เรียบร้อยแล้ว`, 'success');
           nameInput.value = '';
           amountInput.value = '';
+          clearPrizeImagePreview();
           loadData(); 
         } else {
           alert('❌ ' + (data.error || 'เกิดข้อผิดพลาดในการบันทึกของรางวัล'));

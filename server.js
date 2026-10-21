@@ -8,7 +8,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
@@ -80,20 +81,25 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS employees (
     id INTEGER PRIMARY KEY AUTOINCREMENT, emp_code TEXT UNIQUE,
     name TEXT NOT NULL, department TEXT, status TEXT DEFAULT 'eligible',
-    rank TEXT, first_name TEXT, last_name TEXT
+    rank TEXT, first_name TEXT, last_name TEXT, special_type TEXT DEFAULT 'ปกติ'
   )`);
-  // Migration for existing tables without rank, first_name, last_name, order_index
+  // Migration for existing tables without rank, first_name, last_name, order_index, special_type
   db.run(`ALTER TABLE employees ADD COLUMN rank TEXT`, () => {});
   db.run(`ALTER TABLE employees ADD COLUMN first_name TEXT`, () => {});
   db.run(`ALTER TABLE employees ADD COLUMN last_name TEXT`, () => {});
+  db.run(`ALTER TABLE employees ADD COLUMN special_type TEXT DEFAULT 'ปกติ'`, () => {});
   db.run(`ALTER TABLE ranks ADD COLUMN order_index INTEGER DEFAULT 0`, () => {
     db.run(`UPDATE ranks SET order_index = id WHERE order_index IS NULL OR order_index = 0`);
   });
 
   db.run(`CREATE TABLE IF NOT EXISTS prizes (
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-    total_amount INTEGER DEFAULT 1, remaining_amount INTEGER DEFAULT 1
+    total_amount INTEGER DEFAULT 1, remaining_amount INTEGER DEFAULT 1,
+    image_url TEXT, allow_on_duty INTEGER DEFAULT 1, allow_mission INTEGER DEFAULT 1
   )`);
+  db.run(`ALTER TABLE prizes ADD COLUMN image_url TEXT`, () => {});
+  db.run(`ALTER TABLE prizes ADD COLUMN allow_on_duty INTEGER DEFAULT 1`, () => {});
+  db.run(`ALTER TABLE prizes ADD COLUMN allow_mission INTEGER DEFAULT 1`, () => {});
   db.run(`CREATE TABLE IF NOT EXISTS winners (
     id INTEGER PRIMARY KEY AUTOINCREMENT, prize_id INTEGER,
     employee_id INTEGER, won_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -333,11 +339,15 @@ app.get('/api/employees/check-duplicate', (req, res) => {
 });
 
 app.post('/api/employees', (req, res) => {
-  let { name, department, rank, first_name, last_name } = req.body;
+  let { name, department, rank, first_name, last_name, special_type } = req.body;
   
   first_name = (first_name || '').trim();
   last_name = (last_name || '').trim();
   rank = (rank || '').trim();
+  special_type = (special_type || 'ปกติ').trim();
+  if (!['ปกติ', 'เข้าเวร', 'ไปราชการ'].includes(special_type)) {
+    special_type = 'ปกติ';
+  }
 
   if (!name && first_name && last_name) {
     name = rank ? `${rank} ${first_name} ${last_name}` : `${first_name} ${last_name}`;
@@ -370,11 +380,11 @@ app.post('/api/employees', (req, res) => {
     const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
     const emp_code = `EMP-${randomCode}`;
 
-    db.run(`INSERT INTO employees (emp_code, name, department, rank, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?)`, 
-      [emp_code, name, department, rank || null, first_name || null, last_name || null], 
+    db.run(`INSERT INTO employees (emp_code, name, department, rank, first_name, last_name, special_type) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
+      [emp_code, name, department, rank || null, first_name || null, last_name || null, special_type], 
       function (err) {
         if (err) return res.status(400).json({ error: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
-        res.json({ id: this.lastID, emp_code, name, department, rank, first_name, last_name, status: 'eligible' });
+        res.json({ id: this.lastID, emp_code, name, department, rank, first_name, last_name, special_type, status: 'eligible' });
     });
   });
 });
@@ -394,13 +404,92 @@ app.get('/api/admin/prizes', (req, res) => {
   db.all("SELECT * FROM prizes ORDER BY id DESC", [], (err, rows) => res.json(rows || []));
 });
 app.post('/api/prizes', (req, res) => {
-  const { name, total_amount } = req.body;
-  db.run(`INSERT INTO prizes (name, total_amount, remaining_amount) VALUES (?, ?, ?)`, [name, total_amount, total_amount], function (err) {
-    const newPrize = { id: this.lastID, name, total_amount, remaining_amount: total_amount };
-    broadcastToStage('prizes_updated', { action: 'created', prize: newPrize });
-    res.json(newPrize);
+  const { name, total_amount, image_url, allow_on_duty, allow_mission } = req.body;
+  const onDuty = (allow_on_duty === 0 || allow_on_duty === false || allow_on_duty === '0') ? 0 : 1;
+  const mission = (allow_mission === 0 || allow_mission === false || allow_mission === '0') ? 0 : 1;
+  const cleanImage = (image_url || '').trim() || null;
+  const amount = parseInt(total_amount, 10) || 1;
+
+  db.run(
+    `INSERT INTO prizes (name, total_amount, remaining_amount, image_url, allow_on_duty, allow_mission) VALUES (?, ?, ?, ?, ?, ?)`, 
+    [name.trim(), amount, amount, cleanImage, onDuty, mission], 
+    function (err) {
+      if (err) return res.status(500).json({ error: "เกิดข้อผิดพลาดในการสร้างของรางวัล" });
+      const newPrize = { 
+        id: this.lastID, 
+        name: name.trim(), 
+        total_amount: amount, 
+        remaining_amount: amount,
+        image_url: cleanImage,
+        allow_on_duty: onDuty,
+        allow_mission: mission
+      };
+      broadcastToStage('prizes_updated', { action: 'created', prize: newPrize });
+      res.json(newPrize);
+    }
+  );
+});
+
+app.put('/api/prizes/:id', (req, res) => {
+  const { name, total_amount, image_url, allow_on_duty, allow_mission } = req.body;
+  const id = req.params.id;
+  db.get("SELECT * FROM prizes WHERE id = ?", [id], (err, existing) => {
+    if (err || !existing) return res.status(404).json({ error: "ไม่พบของรางวัล" });
+
+    const newName = name !== undefined ? name.trim() : existing.name;
+    const newTotal = total_amount !== undefined ? parseInt(total_amount, 10) : existing.total_amount;
+    const diff = newTotal - existing.total_amount;
+    const newRemaining = Math.max(0, existing.remaining_amount + diff);
+    const newImage = image_url !== undefined ? ((image_url || '').trim() || null) : existing.image_url;
+    const onDuty = allow_on_duty !== undefined ? ((allow_on_duty === 0 || allow_on_duty === false || allow_on_duty === '0') ? 0 : 1) : (existing.allow_on_duty !== null ? existing.allow_on_duty : 1);
+    const mission = allow_mission !== undefined ? ((allow_mission === 0 || allow_mission === false || allow_mission === '0') ? 0 : 1) : (existing.allow_mission !== null ? existing.allow_mission : 1);
+
+    db.run(
+      `UPDATE prizes SET name = ?, total_amount = ?, remaining_amount = ?, image_url = ?, allow_on_duty = ?, allow_mission = ? WHERE id = ?`,
+      [newName, newTotal, newRemaining, newImage, onDuty, mission, id],
+      function (err2) {
+        if (err2) return res.status(500).json({ error: "ไม่สามารถอัปเดตรางวัลได้" });
+        const updated = {
+          id: parseInt(id, 10),
+          name: newName,
+          total_amount: newTotal,
+          remaining_amount: newRemaining,
+          image_url: newImage,
+          allow_on_duty: onDuty,
+          allow_mission: mission
+        };
+        broadcastToStage('prizes_updated', { action: 'updated', prize: updated });
+        res.json(updated);
+      }
+    );
   });
 });
+
+app.patch('/api/prizes/:id/permissions', (req, res) => {
+  const id = req.params.id;
+  const { allow_on_duty, allow_mission } = req.body;
+  db.get("SELECT * FROM prizes WHERE id = ?", [id], (err, existing) => {
+    if (err || !existing) return res.status(404).json({ error: "ไม่พบของรางวัล" });
+    const onDuty = allow_on_duty !== undefined ? ((allow_on_duty === 0 || allow_on_duty === false || allow_on_duty === '0') ? 0 : 1) : (existing.allow_on_duty !== null ? existing.allow_on_duty : 1);
+    const mission = allow_mission !== undefined ? ((allow_mission === 0 || allow_mission === false || allow_mission === '0') ? 0 : 1) : (existing.allow_mission !== null ? existing.allow_mission : 1);
+
+    db.run(
+      `UPDATE prizes SET allow_on_duty = ?, allow_mission = ? WHERE id = ?`,
+      [onDuty, mission, id],
+      function (err2) {
+        if (err2) return res.status(500).json({ error: "เกิดข้อผิดพลาดในการปรับปรุงสิทธิ์" });
+        const updated = {
+          ...existing,
+          allow_on_duty: onDuty,
+          allow_mission: mission
+        };
+        broadcastToStage('prizes_updated', { action: 'updated', prize: updated });
+        res.json({ success: true, prize: updated });
+      }
+    );
+  });
+});
+
 app.delete('/api/prizes/:id', (req, res) => {
   db.run(`DELETE FROM prizes WHERE id = ?`, [req.params.id], () => {
     broadcastToStage('prizes_updated', { action: 'deleted', id: req.params.id });
@@ -408,77 +497,105 @@ app.delete('/api/prizes/:id', (req, res) => {
   });
 });
 
-// นับจำนวนผู้มีสิทธิ์จับฉลากตามสังกัดที่เลือก
+// นับจำนวนผู้มีสิทธิ์จับฉลากตามสังกัดและรางวัลที่เลือก
 app.get('/api/eligible-count', (req, res) => {
-  const { departments } = req.query;
-  let query = "SELECT COUNT(*) as count FROM employees WHERE status = 'eligible'";
-  let params = [];
+  const { departments, prize_id } = req.query;
 
-  if (departments && departments !== 'all') {
-    const deptList = departments.split(',').map(d => d.trim()).filter(Boolean);
-    if (deptList.length > 0) {
-      const placeholders = deptList.map(() => '?').join(',');
-      query += ` AND department IN (${placeholders})`;
-      params = deptList;
+  const countQuery = (prize) => {
+    let query = "SELECT COUNT(*) as count FROM employees WHERE status = 'eligible'";
+    let params = [];
+
+    if (departments && departments !== 'all') {
+      const deptList = departments.split(',').map(d => d.trim()).filter(Boolean);
+      if (deptList.length > 0) {
+        const placeholders = deptList.map(() => '?').join(',');
+        query += ` AND department IN (${placeholders})`;
+        params = deptList.slice();
+      }
     }
-  }
 
-  db.get(query, params, (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ count: row ? row.count : 0 });
-  });
+    if (prize) {
+      if (prize.allow_on_duty === 0) {
+        query += " AND (special_type IS NULL OR special_type != 'เข้าเวร')";
+      }
+      if (prize.allow_mission === 0) {
+        query += " AND (special_type IS NULL OR special_type != 'ไปราชการ')";
+      }
+    }
+
+    db.get(query, params, (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ count: row ? row.count : 0 });
+    });
+  };
+
+  if (prize_id) {
+    db.get("SELECT * FROM prizes WHERE id = ?", [prize_id], (err, prize) => {
+      countQuery(prize);
+    });
+  } else {
+    countQuery(null);
+  }
 });
 
 app.post('/api/draw', (req, res) => {
   let { prize_id, departments, count } = req.body;
   const drawCount = Math.max(1, Math.min(10, parseInt(count) || 1));
-  
-  let empQuery = "SELECT * FROM employees WHERE status = 'eligible'";
-  let empParams = [];
 
-  if (departments && departments !== 'all') {
-    const deptList = Array.isArray(departments) 
-      ? departments 
-      : departments.split(',').map(d => d.trim()).filter(Boolean);
-    
-    if (deptList.length > 0) {
-      const placeholders = deptList.map(() => '?').join(',');
-      empQuery += ` AND department IN (${placeholders})`;
-      empParams = deptList;
-    }
-  }
-
-  db.all(empQuery, empParams, (err, employees) => {
-    if (err) {
+  db.get("SELECT * FROM prizes WHERE id = ? AND remaining_amount > 0", [prize_id], (err, prize) => {
+    if (err || !prize) {
       stageState.isDrawing = false;
-      broadcastToStage('draw_error', { error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
-      return res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
-    }
-    if (!employees || employees.length === 0) {
-      stageState.isDrawing = false;
-      const errMsg = "ไม่มีผู้มีสิทธิ์เหลือแล้วในเงื่อนไขสังกัดที่เลือก";
+      const errMsg = "ของรางวัลนี้หมดแล้ว หรือไม่พบข้อมูล";
       broadcastToStage('draw_error', { error: errMsg });
       return res.status(400).json({ error: errMsg });
     }
 
-    if (employees.length < drawCount) {
+    if (prize.remaining_amount < drawCount) {
       stageState.isDrawing = false;
-      const errMsg = `มีผู้มีสิทธิ์เหลือเพียง ${employees.length} คน (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม`;
+      const errMsg = `ของรางวัลเหลือเพียง ${prize.remaining_amount} รางวัล (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม`;
       broadcastToStage('draw_error', { error: errMsg });
       return res.status(400).json({ error: errMsg });
     }
 
-    db.get("SELECT * FROM prizes WHERE id = ? AND remaining_amount > 0", [prize_id], (err, prize) => {
-      if (err || !prize) {
+    let empQuery = "SELECT * FROM employees WHERE status = 'eligible'";
+    let empParams = [];
+
+    if (departments && departments !== 'all') {
+      const deptList = Array.isArray(departments) 
+        ? departments 
+        : departments.split(',').map(d => d.trim()).filter(Boolean);
+      
+      if (deptList.length > 0) {
+        const placeholders = deptList.map(() => '?').join(',');
+        empQuery += ` AND department IN (${placeholders})`;
+        empParams = deptList;
+      }
+    }
+
+    // กรองตามสิทธิ์ของรางวัล (เข้าเวร / ไปราชการ)
+    if (prize.allow_on_duty === 0) {
+      empQuery += " AND (special_type IS NULL OR special_type != 'เข้าเวร')";
+    }
+    if (prize.allow_mission === 0) {
+      empQuery += " AND (special_type IS NULL OR special_type != 'ไปราชการ')";
+    }
+
+    db.all(empQuery, empParams, (err2, employees) => {
+      if (err2) {
         stageState.isDrawing = false;
-        const errMsg = "ของรางวัลนี้หมดแล้ว หรือไม่พบข้อมูล";
+        broadcastToStage('draw_error', { error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
+        return res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
+      }
+      if (!employees || employees.length === 0) {
+        stageState.isDrawing = false;
+        const errMsg = "ไม่มีผู้มีสิทธิ์เหลือแล้วในเงื่อนไขที่เลือก (อาจไม่มีผู้มีสิทธิ์ในสังกัด หรือกลุ่มประเภทที่กำหนด)";
         broadcastToStage('draw_error', { error: errMsg });
         return res.status(400).json({ error: errMsg });
       }
 
-      if (prize.remaining_amount < drawCount) {
+      if (employees.length < drawCount) {
         stageState.isDrawing = false;
-        const errMsg = `ของรางวัลเหลือเพียง ${prize.remaining_amount} รางวัล (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม`;
+        const errMsg = `มีผู้มีสิทธิ์เหลือเพียง ${employees.length} คน (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม`;
         broadcastToStage('draw_error', { error: errMsg });
         return res.status(400).json({ error: errMsg });
       }
@@ -506,8 +623,8 @@ app.post('/api/draw', (req, res) => {
         updateEmpStmt.finalize();
         insertWinnerStmt.finalize();
 
-        db.run("UPDATE prizes SET remaining_amount = remaining_amount - ? WHERE id = ?", [drawCount, prize_id], (err) => {
-          if (err) {
+        db.run("UPDATE prizes SET remaining_amount = remaining_amount - ? WHERE id = ?", [drawCount, prize_id], (err3) => {
+          if (err3) {
             stageState.isDrawing = false;
             broadcastToStage('draw_error', { error: "เกิดข้อผิดพลาดในการปรับปรุงยอดรางวัล" });
             return res.status(500).json({ error: "เกิดข้อผิดพลาดในการปรับปรุงยอดรางวัล" });
@@ -529,7 +646,7 @@ app.post('/api/draw', (req, res) => {
           stageState.isDrawing = false;
           stageState.currentWinners = pickedWinners;
           if (stageState.selectedPrize && stageState.selectedPrize.id === prize_id) {
-            stageState.selectedPrize.remaining_amount = prize.remaining_amount - drawCount;
+            stageState.selectedPrize = resultData.prize;
           }
           broadcastToStage('draw_result', resultData);
 
@@ -589,7 +706,9 @@ app.get('/api/winners', (req, res) => {
       employees.last_name,
       employees.emp_code,
       employees.department, 
-      prizes.name as prize_name
+      employees.special_type,
+      prizes.name as prize_name,
+      prizes.image_url as prize_image_url
     FROM winners 
     JOIN employees ON winners.employee_id = employees.id 
     JOIN prizes ON winners.prize_id = prizes.id 
@@ -705,7 +824,7 @@ app.post('/api/admin/bulk-employees', (req, res) => {
   db.serialize(() => {
     db.run("BEGIN TRANSACTION");
     const insertStmt = db.prepare(
-      "INSERT INTO employees (emp_code, name, department, rank, first_name, last_name, status) VALUES (?, ?, ?, ?, ?, ?, 'eligible')"
+      "INSERT INTO employees (emp_code, name, department, rank, first_name, last_name, special_type, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'eligible')"
     );
 
     employees.forEach((item) => {
@@ -714,6 +833,10 @@ app.post('/api/admin/bulk-employees', (req, res) => {
       let last_name = (item.last_name || '').trim();
       let department = (item.department || '').trim() || 'ทั่วไป';
       let name = (item.name || '').trim();
+      let special_type = (item.special_type || 'ปกติ').trim();
+      if (!['ปกติ', 'เข้าเวร', 'ไปราชการ'].includes(special_type)) {
+        special_type = 'ปกติ';
+      }
 
       if (!name && first_name) {
         name = rank ? `${rank} ${first_name} ${last_name}`.trim() : `${first_name} ${last_name}`.trim();
@@ -727,7 +850,7 @@ app.post('/api/admin/bulk-employees', (req, res) => {
       const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
       const emp_code = `EMP-${randomCode}`;
 
-      insertStmt.run(emp_code, name, department, rank || null, first_name || null, last_name || null, function (err) {
+      insertStmt.run(emp_code, name, department, rank || null, first_name || null, last_name || null, special_type, function (err) {
         if (err) {
           skippedCount++;
         } else {

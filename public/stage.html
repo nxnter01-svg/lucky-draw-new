@@ -243,6 +243,10 @@
         <span class="text-xs font-black text-pink-600 uppercase tracking-widest bg-pink-50 px-3.5 py-1 rounded-full border border-pink-200">
           ขอแสดงความยินดีกับผู้ได้รับรางวัล
         </span>
+        <!-- รูปของรางวัลใน Modal -->
+        <div id="modalPrizeImageWrapper" class="hidden justify-center items-center my-2.5">
+          <img id="modalPrizeImage" src="" alt="ของรางวัล" class="max-h-36 max-w-xs object-contain rounded-2xl border-2 border-pink-200 bg-white p-1.5 shadow-md">
+        </div>
         <h2 id="modalPrizeName" class="text-2xl lg:text-3xl font-black text-slate-800 mt-2">รางวัล...</h2>
         <p id="modalBatchCountText" class="text-xs text-slate-500 mt-1">ผู้โชคดีทั้งหมด 1 ท่าน</p>
       </div>
@@ -556,17 +560,29 @@
         return `
           <div onclick="${isAvailable ? `selectPrize(${p.id})` : ''}" class="border-2 rounded-2xl p-3 transition-all ${cardStyle}">
             <div class="flex justify-between items-start gap-2">
-              <div class="font-bold text-sm ${isSelected ? 'text-pink-600' : (isAvailable ? 'text-slate-800' : 'text-slate-400 line-through')}">
-                🎁 ${p.name}
+              <div class="flex items-center gap-2 min-w-0">
+                ${p.image_url 
+                  ? `<img src="${p.image_url}" class="w-8 h-8 rounded-lg object-cover border border-pink-200 shrink-0 bg-white shadow-sm">`
+                  : `<span class="text-base shrink-0">🎁</span>`
+                }
+                <div class="font-bold text-sm truncate ${isSelected ? 'text-pink-600' : (isAvailable ? 'text-slate-800' : 'text-slate-400 line-through')}">
+                  ${p.name}
+                </div>
               </div>
-              <div>${statusBadge}</div>
+              <div class="shrink-0">${statusBadge}</div>
             </div>
             
-            <div class="mt-2.5 flex justify-between items-center text-xs">
+            <div class="mt-2 flex justify-between items-center text-xs">
               <span class="text-slate-500">คงเหลือ:</span>
               <span class="font-bold ${isAvailable ? 'text-pink-600' : 'text-slate-400'}">
                 ${p.remaining_amount} / ${p.total_amount}
               </span>
+            </div>
+
+            <!-- แสดงป้ายสิทธิ์เข้าเวร/ไปราชการ -->
+            <div class="flex flex-wrap items-center gap-1 mt-1 text-[10px]">
+              ${p.allow_on_duty === 0 ? '<span class="bg-amber-50 text-amber-700 px-1.5 py-0.2 rounded border border-amber-200 font-bold">🛡️ เว้นเข้าเวร</span>' : ''}
+              ${p.allow_mission === 0 ? '<span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.2 rounded border border-indigo-200 font-bold">✈️ เว้นไปราชการ</span>' : ''}
             </div>
 
             <!-- แถบ Progress แสดงสัดส่วนการจับรางวัล -->
@@ -604,8 +620,13 @@
         return;
       }
 
+      let restrictions = [];
+      if (prize.allow_on_duty === 0) restrictions.push("เว้นคนเข้าเวร");
+      if (prize.allow_mission === 0) restrictions.push("เว้นคนไปราชการ");
+      const restrictionText = restrictions.length > 0 ? ` • เงื่อนไข: [${restrictions.join(', ')}]` : '';
+
       title.textContent = `🏆 กำลังสุ่ม: ${prize.name}`;
-      note.textContent = `สุ่มครั้งละ ${drawCount} ท่าน (รางวัลคงเหลือ: ${prize.remaining_amount}/${prize.total_amount})`;
+      note.textContent = `สุ่มครั้งละ ${drawCount} ท่าน (รางวัลคงเหลือ: ${prize.remaining_amount}/${prize.total_amount})${restrictionText}`;
       btn.disabled = false;
     }
 
@@ -756,7 +777,7 @@
       try {
         const depts = getSelectedDepartments();
         const queryParam = Array.isArray(depts) ? depts.join(',') : depts;
-        const res = await fetch(`${API}/eligible-count?departments=${encodeURIComponent(queryParam)}`);
+        const res = await fetch(`${API}/eligible-count?departments=${encodeURIComponent(queryParam)}&prize_id=${selectedPrizeId || ''}`);
         const data = await res.json();
         document.getElementById('eligibleCountBadge').textContent = `${data.count || 0} คน`;
         
@@ -955,6 +976,19 @@
       document.getElementById('modalPrizeName').textContent = prize.name;
       document.getElementById('modalBatchCountText').textContent = `ผู้โชคดีทั้งหมด ${winners.length} ท่าน (รอบนี้)`;
       
+      const modalPrizeImgWrapper = document.getElementById('modalPrizeImageWrapper');
+      const modalPrizeImg = document.getElementById('modalPrizeImage');
+      if (modalPrizeImgWrapper && modalPrizeImg) {
+        if (prize && prize.image_url) {
+          modalPrizeImg.src = prize.image_url;
+          modalPrizeImgWrapper.classList.remove('hidden');
+          modalPrizeImgWrapper.classList.add('flex');
+        } else {
+          modalPrizeImgWrapper.classList.add('hidden');
+          modalPrizeImgWrapper.classList.remove('flex');
+        }
+      }
+
       const container = document.getElementById('modalWinnersContainer');
       
       const gridClass = winners.length > 1 ? "grid grid-cols-1 sm:grid-cols-2 gap-2.5" : "space-y-2";
