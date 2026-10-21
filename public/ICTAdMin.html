@@ -76,6 +76,29 @@
       </div>
     </div>
 
+    <!-- แถบควบคุมสถานะการเปิด/ปิดรับลงทะเบียน (ผู้ดูแลระบบสามารถควบคุมได้) -->
+    <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div id="regStatusIcon" class="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-xl shrink-0">
+          🟢
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-black text-slate-800 text-sm sm:text-base">สถานะการรับลงทะเบียน (register.html):</span>
+            <span id="regStatusBadge" class="text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+              🟢 กำลังเปิดรับลงทะเบียน
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">เมื่อสั่งปิด ผู้เข้าร่วมงานจะไม่สามารถลงทะเบียนใหม่ได้ และหน้า register.html จะแสดงว่า "ปิดการรับลงทะเบียน"</p>
+        </div>
+      </div>
+      <div class="shrink-0 w-full sm:w-auto">
+        <button id="btnToggleReg" onclick="toggleRegistrationStatus()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition shadow flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white">
+          🔒 สั่งปิดการรับลงทะเบียน
+        </button>
+      </div>
+    </div>
+
     <!-- สถิติภาพรวมระบบ (Quick Stats Overview) -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
@@ -957,6 +980,7 @@
 
         // โหลดตารางผู้ได้รับรางวัล
         loadWinnersTable();
+        loadRegistrationStatus();
         hideConnectionError();
       } catch (error) {
         console.error("Error loading data:", error);
@@ -989,7 +1013,7 @@
               <td class="py-2.5 px-3 font-mono text-slate-400">#${idx + 1}</td>
               <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${w.emp_code || '-'}</td>
               <td class="py-2.5 px-3">
-                <span class="font-bold text-slate-800">${w.rank ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] px-1.5 py-0.5 rounded font-bold mr-1">${w.rank}</span>` : ''}${displayName}</span>
+                <span class="font-bold text-slate-800">${w.rank ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] px-1.5 py-0.5 rounded font-bold mr-1">${w.rank}</span>` : ''}${displayName}${(w.special_type && w.special_type !== 'ปกติ') ? ` <span class="bg-slate-100 text-slate-700 border border-slate-300 text-[10px] px-1.5 py-0.5 rounded font-bold">(${w.special_type})</span>` : ''}</span>
               </td>
               <td class="py-2.5 px-3 text-slate-600 font-medium">${w.department || '-'}</td>
               <td class="py-2.5 px-3">
@@ -1284,7 +1308,8 @@
             first_name: firstName,
             last_name: lastName,
             department,
-            special_type: specialType
+            special_type: specialType,
+            from_admin: true
           }) 
         });
 
@@ -1303,6 +1328,70 @@
         alert('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
       }
     };
+
+    // ตัวแปรและฟังก์ชันจัดการสถานะเปิด/ปิดรับลงทะเบียน
+    let isRegistrationOpen = true;
+
+    async function loadRegistrationStatus() {
+      try {
+        const res = await fetch(`${API}/registration-status`);
+        if (!res.ok) return;
+        const data = await res.json();
+        isRegistrationOpen = data.isOpen !== false;
+        updateRegistrationStatusUI();
+      } catch (err) {
+        console.error("Error loading registration status:", err);
+      }
+    }
+
+    function updateRegistrationStatusUI() {
+      const icon = document.getElementById('regStatusIcon');
+      const badge = document.getElementById('regStatusBadge');
+      const btn = document.getElementById('btnToggleReg');
+
+      if (!badge || !btn) return;
+
+      if (isRegistrationOpen) {
+        if (icon) icon.textContent = '🟢';
+        badge.className = "text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm";
+        badge.textContent = "🟢 เปิดรับลงทะเบียนอยู่";
+        btn.className = "w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition shadow flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white";
+        btn.innerHTML = '<span>🔒 สั่งปิดการรับลงทะเบียน</span>';
+      } else {
+        if (icon) icon.textContent = '🔴';
+        badge.className = "text-xs font-black px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 shadow-sm";
+        badge.textContent = "🔴 ปิดการรับลงทะเบียนแล้ว";
+        btn.className = "w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition shadow flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white";
+        btn.innerHTML = '<span>🔓 สั่งเปิดรับลงทะเบียน</span>';
+      }
+    }
+
+    async function toggleRegistrationStatus() {
+      const targetState = !isRegistrationOpen;
+      const confirmMsg = targetState 
+        ? "ยืนยันต้องการ 'เปิด' รับการลงทะเบียนในหน้า register.html ใช่หรือไม่?"
+        : "ยืนยันต้องการ 'ปิด' รับการลงทะเบียนในหน้า register.html ใช่หรือไม่? (ผู้เข้าร่วมงานจะไม่สามารถลงทะเบียนใหม่ได้)";
+      
+      if (!confirm(confirmMsg)) return;
+
+      try {
+        const res = await fetch(`${API}/admin/toggle-registration`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isOpen: targetState })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          isRegistrationOpen = data.isOpen;
+          updateRegistrationStatusUI();
+          showToast(isRegistrationOpen ? "เปิดรับการลงทะเบียนเรียบร้อยแล้ว" : "ปิดการรับลงทะเบียนเรียบร้อยแล้ว", "success");
+        } else {
+          alert('❌ ' + (data.error || 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ'));
+        }
+      } catch (err) {
+        alert('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    }
 
     // ตัวแปรและฟังก์ชันจัดการรูปภาพรางวัล
     let currentPrizeImageData = null;

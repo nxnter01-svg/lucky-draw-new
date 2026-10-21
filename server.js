@@ -107,6 +107,11 @@ db.serialize(() => {
     FOREIGN KEY(employee_id) REFERENCES employees(id)
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS system_settings (
+    key TEXT PRIMARY KEY, value TEXT
+  )`);
+  db.run(`INSERT OR IGNORE INTO system_settings (key, value) VALUES ('registration_open', 'true')`);
+
   // Seed default ranks if empty
   db.get("SELECT COUNT(*) as count FROM ranks", (err, row) => {
     if (!err && row && row.count === 0) {
@@ -218,6 +223,28 @@ app.post('/api/departments', (req, res) => {
 });
 app.delete('/api/departments/:id', (req, res) => {
   db.run(`DELETE FROM departments WHERE id = ?`, [req.params.id], () => res.json({ success: true }));
+});
+
+// APIs - System Settings (เปิด/ปิด รับลงทะเบียน)
+app.get('/api/registration-status', (req, res) => {
+  db.get("SELECT value FROM system_settings WHERE key = 'registration_open'", (err, row) => {
+    const isOpen = row ? row.value === 'true' : true;
+    res.json({ isOpen });
+  });
+});
+
+app.post('/api/admin/toggle-registration', (req, res) => {
+  const { isOpen } = req.body;
+  const val = isOpen ? 'true' : 'false';
+  db.run(
+    "INSERT INTO system_settings (key, value) VALUES ('registration_open', ?) ON CONFLICT(key) DO UPDATE SET value = ?",
+    [val, val],
+    function(err) {
+      if (err) return res.status(500).json({ error: "เกิดข้อผิดพลาดในการบันทึกสถานะ" });
+      broadcastToStage('registration_status_changed', { isOpen: isOpen === true });
+      res.json({ success: true, isOpen: isOpen === true });
+    }
+  );
 });
 
 // APIs - Ranks (ยศ)
@@ -339,54 +366,69 @@ app.get('/api/employees/check-duplicate', (req, res) => {
 });
 
 app.post('/api/employees', (req, res) => {
-  let { name, department, rank, first_name, last_name, special_type } = req.body;
-  
-  first_name = (first_name || '').trim();
-  last_name = (last_name || '').trim();
-  rank = (rank || '').trim();
-  special_type = (special_type || 'ปกติ').trim();
-  if (!['ปกติ', 'เข้าเวร', 'ไปราชการ'].includes(special_type)) {
-    special_type = 'ปกติ';
-  }
+  let { name, department, rank, first_name, last_name, special_type, from_admin } = req.body;
 
-  if (!name && first_name && last_name) {
-    name = rank ? `${rank} ${first_name} ${last_name}` : `${first_name} ${last_name}`;
-  }
-  name = (name || '').trim();
-
-  if (!name && !first_name) {
-    return res.status(400).json({ error: "กรุณาระบุชื่อ-นามสกุล" });
-  }
-
-  // ตรวจสอบชื่อซ้ำในระบบ
-  let checkQuery = `
-    SELECT id, emp_code, name, department 
-    FROM employees 
-    WHERE (first_name IS NOT NULL AND first_name != '' AND TRIM(first_name) = ? AND TRIM(last_name) = ?)
-       OR TRIM(name) = ?
-       OR TRIM(name) = ?
-  `;
-  let checkParams = [first_name, last_name, `${first_name} ${last_name}`.trim(), name];
-
-  db.get(checkQuery, checkParams, (err, existing) => {
-    if (err) return res.status(500).json({ error: "เกิดข้อผิดพลาดในการตรวจสอบข้อมูล" });
-    if (existing) {
-      return res.status(400).json({ 
-        error: `รายชื่อนี้ (${existing.name}) ได้ลงทะเบียนไปแล้วในสังกัด "${existing.department}" (รหัส: ${existing.emp_code}) ไม่สามารถลงทะเบียนซ้ำได้` 
-      });
+  const proceedSave = () => {
+    first_name = (first_name || '').trim();
+    last_name = (last_name || '').trim();
+    rank = (rank || '').trim();
+    special_type = (special_type || 'ปกติ').trim();
+    if (!['ปกติ', 'เข้าเวร', 'ไปราชการ'].includes(special_type)) {
+      special_type = 'ปกติ';
     }
 
-    // สุ่มเลขรหัส 5 หลัก (เช่น 49215)
-    const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
-    const emp_code = `EMP-${randomCode}`;
+    if (!name && first_name && last_name) {
+      name = rank ? `${rank} ${first_name} ${last_name}` : `${first_name} ${last_name}`;
+    }
+    name = (name || '').trim();
 
-    db.run(`INSERT INTO employees (emp_code, name, department, rank, first_name, last_name, special_type) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
-      [emp_code, name, department, rank || null, first_name || null, last_name || null, special_type], 
-      function (err) {
-        if (err) return res.status(400).json({ error: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
-        res.json({ id: this.lastID, emp_code, name, department, rank, first_name, last_name, special_type, status: 'eligible' });
+    if (!name && !first_name) {
+      return res.status(400).json({ error: "กรุณาระบุชื่อ-นามสกุล" });
+    }
+
+    // ตรวจสอบชื่อซ้ำในระบบ
+    let checkQuery = `
+      SELECT id, emp_code, name, department 
+      FROM employees 
+      WHERE (first_name IS NOT NULL AND first_name != '' AND TRIM(first_name) = ? AND TRIM(last_name) = ?)
+         OR TRIM(name) = ?
+         OR TRIM(name) = ?
+    `;
+    let checkParams = [first_name, last_name, `${first_name} ${last_name}`.trim(), name];
+
+    db.get(checkQuery, checkParams, (err, existing) => {
+      if (err) return res.status(500).json({ error: "เกิดข้อผิดพลาดในการตรวจสอบข้อมูล" });
+      if (existing) {
+        return res.status(400).json({ 
+          error: `รายชื่อนี้ (${existing.name}) ได้ลงทะเบียนไปแล้วในสังกัด "${existing.department}" (รหัส: ${existing.emp_code}) ไม่สามารถลงทะเบียนซ้ำได้` 
+        });
+      }
+
+      // สุ่มเลขรหัส 5 หลัก (เช่น 49215)
+      const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
+      const emp_code = `EMP-${randomCode}`;
+
+      db.run(`INSERT INTO employees (emp_code, name, department, rank, first_name, last_name, special_type) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
+        [emp_code, name, department, rank || null, first_name || null, last_name || null, special_type], 
+        function (err2) {
+          if (err2) return res.status(400).json({ error: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" });
+          res.json({ id: this.lastID, emp_code, name, department, rank, first_name, last_name, special_type, status: 'eligible' });
+      });
     });
-  });
+  };
+
+  // ถ้าไม่ได้ส่งมาจาก Admin ให้ตรวจสอบก่อนว่าระบบเปิดรับลงทะเบียนอยู่หรือไม่
+  if (!from_admin) {
+    db.get("SELECT value FROM system_settings WHERE key = 'registration_open'", (errSet, setRow) => {
+      const isRegOpen = setRow ? setRow.value === 'true' : true;
+      if (!isRegOpen) {
+        return res.status(403).json({ error: "ขณะนี้ระบบได้ปิดการรับลงทะเบียนแล้ว" });
+      }
+      proceedSave();
+    });
+  } else {
+    proceedSave();
+  }
 });
 app.delete('/api/employees/:id', (req, res) => {
   db.run(`DELETE FROM employees WHERE id = ?`, [req.params.id], () => res.json({ success: true }));

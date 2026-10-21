@@ -467,7 +467,9 @@
 
       if (count === 1 && winners.length > 0) {
         const w = winners[0];
-        const displayName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim();
+        const specialTag = (w.special_type && w.special_type !== 'ปกติ') ? ` (${w.special_type})` : '';
+        const baseName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim();
+        const displayName = `${baseName}${specialTag}`;
         
         document.getElementById('singleWinnerBox').classList.remove('hidden');
         document.getElementById('batchWinnersBox').classList.add('hidden');
@@ -481,7 +483,9 @@
 
         const grid = document.getElementById('batchWinnersGrid');
         grid.innerHTML = winners.map((w, index) => {
-          const displayName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim();
+          const specialTag = (w.special_type && w.special_type !== 'ปกติ') ? ` (${w.special_type})` : '';
+          const baseName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim();
+          const displayName = `${baseName}${specialTag}`;
           return `
             <div class="winner-highlight-card rounded-2xl p-4 text-left flex flex-col justify-between space-y-2">
               <div class="flex items-center justify-between">
@@ -574,7 +578,9 @@
         }
 
         const items = winners.slice(0, 15).map(w => {
-          const name = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim() || w.employee_name;
+          const sp = (w.special_type && w.special_type !== 'ปกติ') ? ` (${w.special_type})` : '';
+          const baseName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim() || w.employee_name;
+          const name = `${baseName}${sp}`;
           return `<span class="inline-flex items-center gap-1.5"><span class="text-pink-600">🎁 ${w.prize_name}:</span> <span class="text-slate-800 font-extrabold">${name}</span> <span class="text-slate-400 font-mono text-[11px]">(${w.department || '-'})</span></span>`;
         }).join(' • ');
 

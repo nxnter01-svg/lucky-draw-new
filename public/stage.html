@@ -812,7 +812,9 @@
         }
 
         feed.innerHTML = winners.map(w => {
-          const displayName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim() || w.employee_name;
+          const sp = (w.special_type && w.special_type !== 'ปกติ') ? ` (${w.special_type})` : '';
+          const baseName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim() || w.employee_name;
+          const displayName = `${baseName}${sp}`;
           const time = new Date(w.won_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
           return `
@@ -919,11 +921,15 @@
             currentBatchWinners = data.winner_ids || [];
 
             if (data.count === 1) {
-              display.innerHTML = `<span class="pink-gradient-text">${data.winner.name}</span>`;
+              const sp = (data.winner.special_type && data.winner.special_type !== 'ปกติ') ? ` (${data.winner.special_type})` : '';
+              display.innerHTML = `<span class="pink-gradient-text">${data.winner.name}${sp}</span>`;
               dept.textContent = `🎖️ สังกัด: ${data.winner.department}`;
             } else {
               display.innerHTML = `<span class="pink-gradient-text">🎉 ยินดีกับทั้ง ${data.count} ท่าน!</span>`;
-              dept.textContent = `${data.winners.map(w => w.name).slice(0, 3).join(', ')}${data.count > 3 ? '...' : ''}`;
+              dept.textContent = `${data.winners.map(w => {
+                const sp = (w.special_type && w.special_type !== 'ปกติ') ? ` (${w.special_type})` : '';
+                return `${w.name}${sp}`;
+              }).slice(0, 3).join(', ')}${data.count > 3 ? '...' : ''}`;
             }
 
             note.textContent = `🎉 ได้รับรางวัล: ${data.prize.name} (${data.count} รางวัล)`;
@@ -996,17 +1002,20 @@
 
       container.innerHTML = winners.map((w, idx) => {
         const winnerId = (winnerIds && winnerIds[idx]) ? winnerIds[idx].winner_id : null;
+        const sp = (w.special_type && w.special_type !== 'ปกติ') ? ` (${w.special_type})` : '';
+        const baseName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim();
+        const displayName = `${baseName}${sp}`;
         return `
           <div id="modal-card-${winnerId}" class="winner-card-pink rounded-2xl p-3.5 space-y-1.5 shadow-sm text-left relative group">
             <div class="flex justify-between items-start">
               <span class="text-xs font-bold text-pink-600 bg-pink-50 border border-pink-200 px-2 py-0.5 rounded">ลำดับ #${idx + 1}</span>
               ${winnerId ? `
-                <button type="button" onclick="voidSingleWinnerFromModal(${winnerId}, '${w.name}', 'absent')" class="text-[10px] text-rose-500 hover:text-rose-600 hover:underline">
+                <button type="button" onclick="voidSingleWinnerFromModal(${winnerId}, '${displayName}', 'absent')" class="text-[10px] text-rose-500 hover:text-rose-600 hover:underline">
                   ❌ ไม่อยู่ในงาน
                 </button>
               ` : ''}
             </div>
-            <div class="text-lg font-black text-slate-800 truncate">${w.name}</div>
+            <div class="text-lg font-black text-slate-800 truncate">${displayName}</div>
             <div class="text-xs text-pink-600 font-bold truncate">🎖️ สังกัด: ${w.department || '-'}</div>
             <div class="text-[11px] font-mono text-slate-400">รหัส: ${w.emp_code || '-'}</div>
           </div>
