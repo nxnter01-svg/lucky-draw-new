@@ -792,6 +792,39 @@
       }
     }
 
+    // ป้ายสถานะพิเศษ (เข้าเวร / ไปราชการ) แสดงให้เห็นเด่นชัด
+    function renderSpecialDutyBadge(specialType, size = 'normal') {
+      if (!specialType || specialType === 'ปกติ') return '';
+
+      const isDuty = specialType === 'เข้าเวร';
+      const icon = isDuty ? '🛡️' : '✈️';
+      const label = `(${specialType})`;
+
+      if (size === 'large') {
+        const gradient = isDuty 
+          ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 ring-amber-300/70 border-amber-200' 
+          : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 ring-blue-300/70 border-blue-200';
+        return `<span class="inline-flex items-center gap-1.5 px-3 py-1 sm:px-4 sm:py-1 rounded-2xl ${gradient} text-white text-base sm:text-xl font-black shadow-lg border-2 border-white ring-4 animate-pulse align-middle ml-2 whitespace-nowrap">
+          <span>${icon}</span> <span>${label}</span>
+        </span>`;
+      }
+
+      if (size === 'normal') {
+        const gradient = isDuty 
+          ? 'bg-gradient-to-r from-amber-500 to-orange-500 border-amber-200' 
+          : 'bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-200';
+        return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-xl ${gradient} text-white text-xs sm:text-sm font-black shadow-sm border align-middle ml-1.5 whitespace-nowrap">
+          <span>${icon}</span> <span>${label}</span>
+        </span>`;
+      }
+
+      // small / feed
+      const bg = isDuty ? 'bg-amber-500' : 'bg-blue-600';
+      return `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md ${bg} text-white text-[10px] font-black shadow-xs align-middle ml-1 whitespace-nowrap">
+        <span>${icon}</span> <span>${label}</span>
+      </span>`;
+    }
+
     // 4. กระดานแสดงรายชื่อผู้ได้รับรางวัลแบบ Real-time ด้านขวา
     async function loadWinners() {
       try {
@@ -812,9 +845,9 @@
         }
 
         feed.innerHTML = winners.map(w => {
-          const sp = (w.special_type && w.special_type !== 'ปกติ') ? ` (${w.special_type})` : '';
           const baseName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim() || w.employee_name;
-          const displayName = `${baseName}${sp}`;
+          const badge = renderSpecialDutyBadge(w.special_type, 'small');
+          const cleanName = (w.special_type && w.special_type !== 'ปกติ') ? `${baseName} (${w.special_type})` : baseName;
           const time = new Date(w.won_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
           return `
@@ -826,8 +859,9 @@
                 <span class="text-[10px] text-slate-400 font-mono">${time} น.</span>
               </div>
               <div>
-                <div class="font-bold text-slate-800 text-sm leading-snug group-hover:text-pink-600 transition">
-                  ${displayName}
+                <div class="font-bold text-slate-800 text-sm leading-snug group-hover:text-pink-600 transition flex items-center gap-1 flex-wrap">
+                  <span>${baseName}</span>
+                  ${badge}
                 </div>
                 <div class="text-[11px] text-slate-500 mt-0.5 flex items-center justify-between">
                   <span>🎖️ ${w.department || '-'}</span>
@@ -835,7 +869,7 @@
                 </div>
               </div>
               <div class="pt-1 border-t border-pink-100 flex justify-end">
-                <button type="button" onclick="cancelWinnerFromFeed(${w.id}, '${displayName}', '${w.prize_name}')" class="text-[10px] text-rose-500 hover:text-rose-600 hover:underline">
+                <button type="button" onclick="cancelWinnerFromFeed(${w.id}, '${cleanName.replace(/'/g, "\\'")}', '${w.prize_name}')" class="text-[10px] text-rose-500 hover:text-rose-600 hover:underline">
                   ❌ สละสิทธิ์ / จับใหม่
                 </button>
               </div>
@@ -921,15 +955,15 @@
             currentBatchWinners = data.winner_ids || [];
 
             if (data.count === 1) {
-              const sp = (data.winner.special_type && data.winner.special_type !== 'ปกติ') ? ` (${data.winner.special_type})` : '';
-              display.innerHTML = `<span class="pink-gradient-text">${data.winner.name}${sp}</span>`;
+              const badge = renderSpecialDutyBadge(data.winner.special_type, 'large');
+              display.innerHTML = `<span class="pink-gradient-text">${data.winner.name}</span>${badge}`;
               dept.textContent = `🎖️ สังกัด: ${data.winner.department}`;
             } else {
               display.innerHTML = `<span class="pink-gradient-text">🎉 ยินดีกับทั้ง ${data.count} ท่าน!</span>`;
-              dept.textContent = `${data.winners.map(w => {
-                const sp = (w.special_type && w.special_type !== 'ปกติ') ? ` (${w.special_type})` : '';
-                return `${w.name}${sp}`;
-              }).slice(0, 3).join(', ')}${data.count > 3 ? '...' : ''}`;
+              dept.innerHTML = `🎖️ สังกัด: ` + data.winners.map(w => {
+                const badge = renderSpecialDutyBadge(w.special_type, 'small');
+                return `<span class="font-bold text-slate-800">${w.name}</span>${badge}`;
+              }).slice(0, 3).join(', ') + (data.count > 3 ? '...' : '');
             }
 
             note.textContent = `🎉 ได้รับรางวัล: ${data.prize.name} (${data.count} รางวัล)`;
@@ -1002,20 +1036,23 @@
 
       container.innerHTML = winners.map((w, idx) => {
         const winnerId = (winnerIds && winnerIds[idx]) ? winnerIds[idx].winner_id : null;
-        const sp = (w.special_type && w.special_type !== 'ปกติ') ? ` (${w.special_type})` : '';
         const baseName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim();
-        const displayName = `${baseName}${sp}`;
+        const badge = renderSpecialDutyBadge(w.special_type, 'normal');
+        const alertName = (w.special_type && w.special_type !== 'ปกติ') ? `${baseName} (${w.special_type})` : baseName;
         return `
           <div id="modal-card-${winnerId}" class="winner-card-pink rounded-2xl p-3.5 space-y-1.5 shadow-sm text-left relative group">
             <div class="flex justify-between items-start">
               <span class="text-xs font-bold text-pink-600 bg-pink-50 border border-pink-200 px-2 py-0.5 rounded">ลำดับ #${idx + 1}</span>
               ${winnerId ? `
-                <button type="button" onclick="voidSingleWinnerFromModal(${winnerId}, '${displayName}', 'absent')" class="text-[10px] text-rose-500 hover:text-rose-600 hover:underline">
+                <button type="button" onclick="voidSingleWinnerFromModal(${winnerId}, '${alertName.replace(/'/g, "\\'")}', 'absent')" class="text-[10px] text-rose-500 hover:text-rose-600 hover:underline">
                   ❌ ไม่อยู่ในงาน
                 </button>
               ` : ''}
             </div>
-            <div class="text-lg font-black text-slate-800 truncate">${displayName}</div>
+            <div class="text-lg font-black text-slate-800 flex items-center gap-1.5 flex-wrap">
+              <span>${baseName}</span>
+              ${badge}
+            </div>
             <div class="text-xs text-pink-600 font-bold truncate">🎖️ สังกัด: ${w.department || '-'}</div>
             <div class="text-[11px] font-mono text-slate-400">รหัส: ${w.emp_code || '-'}</div>
           </div>
