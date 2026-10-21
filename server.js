@@ -1,8 +1,8 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const os = require('os');
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -66,68 +66,7 @@ setInterval(() => {
   }
 }, 25000);
 
-const db = new sqlite3.Database('./database.db', (err) => {
-  if (err) console.error("Database connection error:", err.message);
-  else console.log("Connected to SQLite database.");
-});
-
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS departments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS ranks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, order_index INTEGER DEFAULT 0
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS employees (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, emp_code TEXT UNIQUE,
-    name TEXT NOT NULL, department TEXT, status TEXT DEFAULT 'eligible',
-    rank TEXT, first_name TEXT, last_name TEXT, special_type TEXT DEFAULT 'ปกติ'
-  )`);
-  // Migration for existing tables without rank, first_name, last_name, order_index, special_type
-  db.run(`ALTER TABLE employees ADD COLUMN rank TEXT`, () => {});
-  db.run(`ALTER TABLE employees ADD COLUMN first_name TEXT`, () => {});
-  db.run(`ALTER TABLE employees ADD COLUMN last_name TEXT`, () => {});
-  db.run(`ALTER TABLE employees ADD COLUMN special_type TEXT DEFAULT 'ปกติ'`, () => {});
-  db.run(`ALTER TABLE ranks ADD COLUMN order_index INTEGER DEFAULT 0`, () => {
-    db.run(`UPDATE ranks SET order_index = id WHERE order_index IS NULL OR order_index = 0`);
-  });
-
-  db.run(`CREATE TABLE IF NOT EXISTS prizes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-    total_amount INTEGER DEFAULT 1, remaining_amount INTEGER DEFAULT 1,
-    image_url TEXT, allow_on_duty INTEGER DEFAULT 1, allow_mission INTEGER DEFAULT 1
-  )`);
-  db.run(`ALTER TABLE prizes ADD COLUMN image_url TEXT`, () => {});
-  db.run(`ALTER TABLE prizes ADD COLUMN allow_on_duty INTEGER DEFAULT 1`, () => {});
-  db.run(`ALTER TABLE prizes ADD COLUMN allow_mission INTEGER DEFAULT 1`, () => {});
-  db.run(`CREATE TABLE IF NOT EXISTS winners (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, prize_id INTEGER,
-    employee_id INTEGER, won_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(prize_id) REFERENCES prizes(id),
-    FOREIGN KEY(employee_id) REFERENCES employees(id)
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS system_settings (
-    key TEXT PRIMARY KEY, value TEXT
-  )`);
-  db.run(`INSERT OR IGNORE INTO system_settings (key, value) VALUES ('registration_open', 'true')`);
-
-  // Seed default ranks if empty
-  db.get("SELECT COUNT(*) as count FROM ranks", (err, row) => {
-    if (!err && row && row.count === 0) {
-      const defaultRanks = [
-        'พลฯ', 'จ.ต.', 'จ.ท.', 'จ.อ.', 'พ.อ.ต.', 'พ.อ.ท.', 'พ.อ.อ.',
-        'ร.ต.', 'ร.ท.', 'ร.อ.', 'น.ต.', 'น.ท.', 'น.อ.',
-        'พล.อ.ต.', 'พล.อ.ท.', 'พล.อ.', 'นาย', 'นาง', 'นางสาว'
-      ];
-      const stmt = db.prepare("INSERT OR IGNORE INTO ranks (name, order_index) VALUES (?, ?)");
-      defaultRanks.forEach((r, idx) => stmt.run(r, idx + 1));
-      stmt.finalize();
-    } else {
-      db.run(`UPDATE ranks SET order_index = id WHERE order_index IS NULL OR order_index = 0`);
-    }
-  });
-});
+// Database initialized in ./db.js (supports both PostgreSQL/Supabase and SQLite)
 
 // APIs - Real-time Stage Display Sync (SSE & Control)
 app.get('/api/stage-stream', (req, res) => {
