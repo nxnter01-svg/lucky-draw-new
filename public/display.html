@@ -100,7 +100,15 @@
         <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-pink-50 border border-pink-200 text-pink-700 text-xs sm:text-sm font-black shadow-sm">
           <span>🎁 ของรางวัลที่กำลังจับฉลาก</span>
         </div>
-        
+
+        <!-- รูปรางวัล (แสดงหลังสุ่มเสร็จ) -->
+        <div id="revealedPrizeImgBox" class="hidden flex-col items-center justify-center my-1">
+          <div class="relative group inline-block">
+            <div class="absolute -inset-2 bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 rounded-3xl blur-lg opacity-40 animate-pulse"></div>
+            <img id="revealedPrizeImg" src="" alt="รูปรางวัล" class="relative max-h-40 sm:max-h-52 max-w-xs sm:max-w-sm object-contain rounded-2xl bg-white/95 p-2 shadow-2xl border-4 border-white">
+          </div>
+        </div>
+
         <div id="displayPrizeName" class="text-3xl sm:text-4xl lg:text-5xl font-black text-pink-600 tracking-wide drop-shadow-sm transition-all py-1">
           กรุณาเลือกของรางวัล
         </div>
@@ -169,10 +177,8 @@
             </div>
           </div>
 
-          <!-- กล่องผู้ชนะเดี่ยว (กรณีสุ่ม 1 คน) - ดีไซน์ Grand Side-by-Side รูปรางวัลเด่นอลังการเคียงข้างชื่อผู้ชนะ -->
-                    <!-- กล่องผู้ชนะเดี่ยว (กรณีสุ่ม 1 คน) - ดีไซน์ Grand Side-by-Side แบบไม่มีรูปของรางวัลในบรรดาผู้ชนะ -->
-          <div id="singleWinnerBox" class="hidden max-w-4xl mx-auto winner-highlight-card rounded-3xl p-6 sm:p-8 md:p-10 transition-all">
-            <div class="flex flex-col items-center justify-center gap-4">
+          <div id="singleWinnerBox" class="hidden max-w-4xl mx-auto winner-highlight-card rounded-3xl p-6 sm:p-8 md:p-10 transition-all w-full">
+            <div class="flex flex-col items-center justify-center gap-4 text-center">
               <div class="text-4xl sm:text-5xl">🏆</div>
               <div id="singleWinnerName" class="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-800 leading-tight w-full text-center">
                 -
@@ -512,6 +518,18 @@
 
       document.getElementById('stageStatusNote').textContent = `สุ่มได้ผู้โชคดีทั้งหมด ${count} ท่านเรียบร้อยแล้ว`;
 
+      // แสดงรูปรางวัลด้านบน (ใต้ label "ของรางวัลที่กำลังจับฉลาก")
+      const revealedPrizeImgBox = document.getElementById('revealedPrizeImgBox');
+      const revealedPrizeImg = document.getElementById('revealedPrizeImg');
+      if (revealedPrizeImgBox && revealedPrizeImg && prizeObj && prizeObj.image_url) {
+        revealedPrizeImg.src = prizeObj.image_url;
+        revealedPrizeImgBox.classList.remove('hidden');
+        revealedPrizeImgBox.classList.add('flex');
+      } else if (revealedPrizeImgBox) {
+        revealedPrizeImgBox.classList.add('hidden');
+        revealedPrizeImgBox.classList.remove('flex');
+      }
+
       if (count === 1 && winners.length > 0) {
         const w = winners[0];
         const baseName = w.name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim();
@@ -797,6 +815,12 @@
       if (batchBanner) {
         batchBanner.classList.add('hidden');
         batchBanner.classList.remove('flex');
+      }
+      // ซ่อนรูปรางวัลที่แสดงหลังสุ่มเสร็จ
+      const revealedPrizeImgBox = document.getElementById('revealedPrizeImgBox');
+      if (revealedPrizeImgBox) {
+        revealedPrizeImgBox.classList.add('hidden');
+        revealedPrizeImgBox.classList.remove('flex');
       }
       document.getElementById('stateIdle').classList.remove('hidden');
       document.getElementById('stageStatusNote').textContent = 'พร้อมเริ่มจับฉลาก รอสัญญาณจากเครื่องควบคุม...';
