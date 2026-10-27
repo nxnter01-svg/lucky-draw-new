@@ -158,25 +158,50 @@
             <span>🎉</span> ขอแสดงความยินดีกับผู้ได้รับรางวัล <span>🎉</span>
           </div>
 
-          <!-- แถบแสดงรูปของรางวัลพร้อมชื่อรางวัลตอนสุ่มเสร็จ (กะทัดรัด สวยงาม เด่นชัด ไม่บดบังผู้ชนะ) -->
-          <div id="winnerPrizeBar" class="hidden items-center justify-center gap-3 bg-white/95 border-2 border-pink-200 rounded-2xl p-2 px-5 shadow-md mx-auto transition-all">
-            <img id="winnerPrizeBarImg" src="" alt="ของรางวัล" class="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-xl border-2 border-pink-200 bg-pink-50/50 p-1 shadow-xs shrink-0">
-            <div class="text-left">
-              <span class="text-[11px] sm:text-xs font-bold text-pink-500 uppercase tracking-wider block">🎁 รางวัลที่ได้รับ:</span>
-              <span id="winnerPrizeBarName" class="text-xl sm:text-2xl font-black text-pink-600 leading-tight block">ของรางวัล</span>
+          <!-- แถบแสดงรูปของรางวัลพร้อมชื่อรางวัลตอนสุ่มหลายคน (Batch Prize Spotlight) -->
+          <div id="batchPrizeBanner" class="hidden items-center justify-center gap-4 sm:gap-6 bg-gradient-to-r from-pink-50 via-white to-pink-50 border-2 border-pink-300 rounded-3xl p-3 sm:p-4 px-6 sm:px-8 shadow-lg max-w-2xl mx-auto transition-all">
+            <div class="relative shrink-0">
+              <div class="absolute -inset-1.5 bg-gradient-to-r from-pink-500 to-rose-400 rounded-2xl blur-sm opacity-40 animate-pulse"></div>
+              <img id="batchPrizeBannerImg" src="" alt="ของรางวัล" class="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 object-contain rounded-2xl border-2 border-pink-300 bg-white p-1.5 shadow-md">
+            </div>
+            <div class="text-left space-y-1">
+              <span class="text-xs sm:text-sm font-black text-pink-500 uppercase tracking-wider block">🎁 รางวัลที่ได้รับ:</span>
+              <span id="batchPrizeBannerName" class="text-2xl sm:text-3xl md:text-4xl font-black text-pink-600 leading-tight block">ของรางวัล</span>
+              <span id="batchPrizeBannerSub" class="text-xs sm:text-sm text-slate-500 font-bold block">ผู้โชคดีทั้งหมดในรอบนี้</span>
             </div>
           </div>
 
-          <!-- กล่องผู้ชนะเดี่ยว (กรณีสุ่ม 1 คน) -->
-          <div id="singleWinnerBox" class="hidden max-w-xl mx-auto winner-highlight-card rounded-3xl p-6 sm:p-8 space-y-3">
-            <div class="text-4xl sm:text-5xl">🏆</div>
-            <div id="singleWinnerName" class="text-3xl sm:text-5xl font-black text-slate-800 leading-tight">
-              -
-            </div>
-            <div class="flex items-center justify-center gap-3 text-base sm:text-lg font-bold text-pink-600 pt-2 border-t border-pink-100">
-              <span id="singleWinnerDept">🎖️ สังกัด: -</span>
-              <span>•</span>
-              <span id="singleWinnerCode" class="font-mono text-slate-500">รหัส: -</span>
+          <!-- กล่องผู้ชนะเดี่ยว (กรณีสุ่ม 1 คน) - ดีไซน์ Grand Side-by-Side รูปรางวัลเด่นอลังการเคียงข้างชื่อผู้ชนะ -->
+          <div id="singleWinnerBox" class="hidden max-w-4xl mx-auto winner-highlight-card rounded-3xl p-6 sm:p-8 md:p-10 transition-all">
+            <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10">
+              
+              <!-- ฝั่งซ้าย: รูปรางวัลเด่นตระการตา -->
+              <div id="singlePrizeCol" class="flex flex-col items-center shrink-0">
+                <div class="relative group">
+                  <div class="absolute -inset-2 bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 rounded-3xl blur-md opacity-40 animate-pulse"></div>
+                  <img id="singleWinnerPrizeImg" src="" alt="ของรางวัล" class="relative max-h-52 sm:max-h-64 md:max-h-72 max-w-[220px] sm:max-w-[280px] object-contain rounded-2xl bg-white p-2.5 shadow-xl border-4 border-white transition-all transform hover:scale-105">
+                </div>
+                <div class="mt-3 text-xs sm:text-sm font-black text-pink-600 bg-white/95 px-4 py-1.5 rounded-full border border-pink-200 shadow-sm flex items-center gap-1.5 max-w-[280px] truncate">
+                  <span>🎁</span> <span id="singleWinnerPrizeName" class="truncate">ของรางวัล</span>
+                </div>
+              </div>
+
+              <!-- ฝั่งขวา: รายละเอียดผู้โชคดี -->
+              <div class="flex-1 flex flex-col items-center md:items-start text-center md:text-left space-y-3 sm:space-y-4 w-full">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-pink-100 text-pink-700 text-xs sm:text-sm font-black">
+                  <span>🏆</span> <span>ผู้ได้รับรางวัล</span>
+                </div>
+
+                <div id="singleWinnerName" class="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-800 leading-tight w-full">
+                  -
+                </div>
+
+                <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-base sm:text-lg font-bold text-pink-600 pt-3 border-t border-pink-100 w-full">
+                  <span id="singleWinnerDept" class="bg-pink-50/80 border border-pink-200 px-3.5 py-1 rounded-xl">🎖️ สังกัด: -</span>
+                  <span id="singleWinnerCode" class="font-mono bg-slate-50 border border-slate-200 text-slate-600 px-3.5 py-1 rounded-xl">รหัส: -</span>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -424,6 +449,11 @@
 
       document.getElementById('stateIdle').classList.add('hidden');
       document.getElementById('stateWinner').classList.add('hidden');
+      const batchBanner = document.getElementById('batchPrizeBanner');
+      if (batchBanner) {
+        batchBanner.classList.add('hidden');
+        batchBanner.classList.remove('flex');
+      }
       document.getElementById('stateRolling').classList.remove('hidden');
       document.getElementById('stageStatusNote').textContent = `กำลังสุ่มผู้โชคดีพร้อมกัน ${count} ท่าน...`;
 
@@ -499,6 +529,7 @@
 
       const winners = result.winners || (result.winner ? [result.winner] : []);
       const count = result.count || winners.length;
+      const prizeObj = result.prize || currentPrize;
 
       document.getElementById('stageStatusNote').textContent = `สุ่มได้ผู้โชคดีทั้งหมด ${count} ท่านเรียบร้อยแล้ว`;
 
@@ -509,18 +540,63 @@
         
         document.getElementById('singleWinnerBox').classList.remove('hidden');
         document.getElementById('batchWinnersBox').classList.add('hidden');
+        const batchBanner = document.getElementById('batchPrizeBanner');
+        if (batchBanner) {
+          batchBanner.classList.add('hidden');
+          batchBanner.classList.remove('flex');
+        }
 
         document.getElementById('singleWinnerName').innerHTML = `
-          <div class="flex items-center justify-center flex-wrap gap-2">
+          <div class="flex items-center justify-center md:justify-start flex-wrap gap-2">
             <span>${baseName}</span>
             ${badge}
           </div>
         `;
         document.getElementById('singleWinnerDept').textContent = `🎖️ สังกัด: ${w.department || '-'}`;
         document.getElementById('singleWinnerCode').textContent = `รหัส: ${w.emp_code || '-'}`;
+
+        // แสดงรูปของรางวัลและชื่อรางวัลในกล่อง Single Winner เด่นสง่า
+        const singlePrizeCol = document.getElementById('singlePrizeCol');
+        const singleImg = document.getElementById('singleWinnerPrizeImg');
+        const singleName = document.getElementById('singleWinnerPrizeName');
+
+        if (prizeObj) {
+          if (singleName) singleName.textContent = prizeObj.name || 'ของรางวัล';
+          if (singleImg) {
+            if (prizeObj.image_url) {
+              singleImg.src = prizeObj.image_url;
+              singleImg.classList.remove('hidden');
+              if (singlePrizeCol) singlePrizeCol.classList.remove('hidden');
+            } else {
+              singleImg.classList.add('hidden');
+              if (singlePrizeCol) singlePrizeCol.classList.add('hidden');
+            }
+          }
+        }
       } else {
         document.getElementById('singleWinnerBox').classList.add('hidden');
         document.getElementById('batchWinnersBox').classList.remove('hidden');
+
+        // แสดงแบนเนอร์รูปของรางวัลเด่นชัดสำหรับชุดผู้ชนะหลายคน
+        const batchBanner = document.getElementById('batchPrizeBanner');
+        const batchImg = document.getElementById('batchPrizeBannerImg');
+        const batchName = document.getElementById('batchPrizeBannerName');
+        const batchSub = document.getElementById('batchPrizeBannerSub');
+
+        if (batchBanner && prizeObj) {
+          if (batchName) batchName.textContent = prizeObj.name || 'ของรางวัล';
+          if (batchSub) batchSub.textContent = `ผู้โชคดีทั้งหมด ${count} ท่านในรอบนี้`;
+          if (batchImg) {
+            if (prizeObj.image_url) {
+              batchImg.src = prizeObj.image_url;
+              batchImg.classList.remove('hidden');
+            } else {
+              batchImg.classList.add('hidden');
+            }
+          }
+          batchBanner.classList.remove('hidden');
+          batchBanner.classList.add('flex');
+        }
 
         const grid = document.getElementById('batchWinnersGrid');
         grid.innerHTML = winners.map((w, index) => {
@@ -548,26 +624,6 @@
 
       if (result.prize) {
         updatePrizeDisplay(result.prize);
-      }
-
-      // แสดงแถบรูปภาพของรางวัลพร้อมชื่อรางวัลตอนประกาศผลผู้โชคดี (สวยงาม ไม่บดบังผู้ชนะ)
-      const prizeObj = result.prize || currentPrize;
-      const prizeBar = document.getElementById('winnerPrizeBar');
-      const prizeBarImg = document.getElementById('winnerPrizeBarImg');
-      const prizeBarName = document.getElementById('winnerPrizeBarName');
-
-      if (prizeBar && prizeObj) {
-        if (prizeBarName) prizeBarName.textContent = prizeObj.name || 'ของรางวัล';
-        if (prizeBarImg) {
-          if (prizeObj.image_url) {
-            prizeBarImg.src = prizeObj.image_url;
-            prizeBarImg.classList.remove('hidden');
-          } else {
-            prizeBarImg.classList.add('hidden');
-          }
-        }
-        prizeBar.classList.remove('hidden');
-        prizeBar.classList.add('inline-flex');
       }
 
       // เล่นเสียง Fanfare และยิงพลุ
@@ -788,10 +844,10 @@
       isRolling = false;
       document.getElementById('stateRolling').classList.add('hidden');
       document.getElementById('stateWinner').classList.add('hidden');
-      const prizeBar = document.getElementById('winnerPrizeBar');
-      if (prizeBar) {
-        prizeBar.classList.add('hidden');
-        prizeBar.classList.remove('inline-flex');
+      const batchBanner = document.getElementById('batchPrizeBanner');
+      if (batchBanner) {
+        batchBanner.classList.add('hidden');
+        batchBanner.classList.remove('flex');
       }
       document.getElementById('stateIdle').classList.remove('hidden');
       document.getElementById('stageStatusNote').textContent = 'พร้อมเริ่มจับฉลาก รอสัญญาณจากเครื่องควบคุม...';
