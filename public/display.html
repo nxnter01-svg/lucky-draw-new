@@ -540,9 +540,9 @@
 
 
         document.getElementById('singleWinnerName').innerHTML = `
-          <div class="flex items-center justify-center flex-wrap gap-2">
+          <div style="text-align:center; width:100%;">
             <span>${baseName}</span>
-            ${badge}
+            ${badge ? `<span style="display:inline-flex; margin-left:8px; vertical-align:middle;">${badge}</span>` : ''}
           </div>
         `;
         document.getElementById('singleWinnerDept').textContent = `🎖️ สังกัด: ${w.department || '-'}`;
