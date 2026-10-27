@@ -152,10 +152,19 @@
           </div>
         </div>
 
-        <!-- สถานะ 3: ประกาศผลผู้โชคดี (Winner Revealed) - ไม่แสดงรูปรางวัลซ้อน เพื่อให้ชื่อและรายชื่อผู้ชนะเด่นชัด ไม่ซ้อนกัน -->
-        <div id="stateWinner" class="hidden space-y-5 w-full">
+        <!-- สถานะ 3: ประกาศผลผู้โชคดี (Winner Revealed) -->
+        <div id="stateWinner" class="hidden space-y-4 w-full">
           <div class="text-xs sm:text-sm font-black text-pink-600 uppercase tracking-widest bg-pink-100 border border-pink-200 px-4 py-1.5 rounded-full inline-flex items-center gap-2 shadow-sm">
             <span>🎉</span> ขอแสดงความยินดีกับผู้ได้รับรางวัล <span>🎉</span>
+          </div>
+
+          <!-- แถบแสดงรูปของรางวัลพร้อมชื่อรางวัลตอนสุ่มเสร็จ (กะทัดรัด สวยงาม เด่นชัด ไม่บดบังผู้ชนะ) -->
+          <div id="winnerPrizeBar" class="hidden items-center justify-center gap-3 bg-white/95 border-2 border-pink-200 rounded-2xl p-2 px-5 shadow-md mx-auto transition-all">
+            <img id="winnerPrizeBarImg" src="" alt="ของรางวัล" class="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-xl border-2 border-pink-200 bg-pink-50/50 p-1 shadow-xs shrink-0">
+            <div class="text-left">
+              <span class="text-[11px] sm:text-xs font-bold text-pink-500 uppercase tracking-wider block">🎁 รางวัลที่ได้รับ:</span>
+              <span id="winnerPrizeBarName" class="text-xl sm:text-2xl font-black text-pink-600 leading-tight block">ของรางวัล</span>
+            </div>
           </div>
 
           <!-- กล่องผู้ชนะเดี่ยว (กรณีสุ่ม 1 คน) -->
@@ -541,7 +550,27 @@
         updatePrizeDisplay(result.prize);
       }
 
-      // เล่นเสียง Fanfare และยิงพลุ (ไม่แสดงรูปของรางวัลซ้อนตอนประกาศผล เพื่อให้รายชื่อและบัตรผู้ชนะเด่นชัด ไม่ซ้อนกัน)
+      // แสดงแถบรูปภาพของรางวัลพร้อมชื่อรางวัลตอนประกาศผลผู้โชคดี (สวยงาม ไม่บดบังผู้ชนะ)
+      const prizeObj = result.prize || currentPrize;
+      const prizeBar = document.getElementById('winnerPrizeBar');
+      const prizeBarImg = document.getElementById('winnerPrizeBarImg');
+      const prizeBarName = document.getElementById('winnerPrizeBarName');
+
+      if (prizeBar && prizeObj) {
+        if (prizeBarName) prizeBarName.textContent = prizeObj.name || 'ของรางวัล';
+        if (prizeBarImg) {
+          if (prizeObj.image_url) {
+            prizeBarImg.src = prizeObj.image_url;
+            prizeBarImg.classList.remove('hidden');
+          } else {
+            prizeBarImg.classList.add('hidden');
+          }
+        }
+        prizeBar.classList.remove('hidden');
+        prizeBar.classList.add('inline-flex');
+      }
+
+      // เล่นเสียง Fanfare และยิงพลุ
       sfx.playFanfare();
       fireStageConfetti();
       loadRecentWinners();
@@ -759,6 +788,11 @@
       isRolling = false;
       document.getElementById('stateRolling').classList.add('hidden');
       document.getElementById('stateWinner').classList.add('hidden');
+      const prizeBar = document.getElementById('winnerPrizeBar');
+      if (prizeBar) {
+        prizeBar.classList.add('hidden');
+        prizeBar.classList.remove('inline-flex');
+      }
       document.getElementById('stateIdle').classList.remove('hidden');
       document.getElementById('stageStatusNote').textContent = 'พร้อมเริ่มจับฉลาก รอสัญญาณจากเครื่องควบคุม...';
       if (currentPrize) {

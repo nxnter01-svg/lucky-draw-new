@@ -589,21 +589,12 @@ app.post('/api/draw', (req, res) => {
       }
       const pickedWinners = shuffled.slice(0, drawCount);
 
-      db.serialize(() => {
-        const winnerIds = [];
-        const updateEmpStmt = db.prepare("UPDATE employees SET status = 'won' WHERE id = ?");
-        const insertWinnerStmt = db.prepare("INSERT INTO winners (prize_id, employee_id) VALUES (?, ?)");
+      // บันทึกสถานะพนักงานและเพิ่มประวัติผู้ชนะให้เสร็จครบถ้วนก่อนส่งผลลัพธ์
+      const winnerIds = [];
+      let completedCount = 0;
+      let hasError = false;
 
-        pickedWinners.forEach(winner => {
-          updateEmpStmt.run(winner.id);
-          insertWinnerStmt.run(prize_id, winner.id, function() {
-            winnerIds.push({ winner_id: this.lastID, employee_id: winner.id, employee: winner });
-          });
-        });
-
-        updateEmpStmt.finalize();
-        insertWinnerStmt.finalize();
-
+      const finishDraw = () => {
         db.run("UPDATE prizes SET remaining_amount = remaining_amount - ? WHERE id = ?", [drawCount, prize_id], (err3) => {
           if (err3) {
             stageState.isDrawing = false;
@@ -633,6 +624,25 @@ app.post('/api/draw', (req, res) => {
 
           res.json(resultData);
         });
+      };
+
+      pickedWinners.forEach(winner => {
+        db.run("UPDATE employees SET status = 'won' WHERE id = ?", [winner.id], (errUp) => {
+          if (errUp) console.error("Error setting emp status won:", errUp);
+        });
+
+        db.run("INSERT INTO winners (prize_id, employee_id) VALUES (?, ?)", [prize_id, winner.id], function(errIn) {
+          if (errIn) {
+            console.error("Error inserting winner:", errIn);
+            hasError = true;
+          } else {
+            winnerIds.push({ winner_id: this.lastID, employee_id: winner.id, employee: winner });
+          }
+          completedCount++;
+          if (completedCount === pickedWinners.length) {
+            finishDraw();
+          }
+        });
       });
     });
   });
@@ -647,28 +657,38 @@ app.post('/api/winners/:id/cancel', (req, res) => {
   db.get("SELECT * FROM winners WHERE id = ?", [winnerId], (err, winner) => {
     if (err || !winner) return res.status(404).json({ error: "ไม่พบประวัติรางวัลนี้" });
 
-    db.serialize(() => {
-      // คืนของรางวัลกลับเข้าระบบ
-      db.run("UPDATE prizes SET remaining_amount = remaining_amount + 1 WHERE id = ?", [winner.prize_id]);
-      // ปรับสถานะพนักงาน
-      db.run("UPDATE employees SET status = ? WHERE id = ?", [empStatus, winner.employee_id]);
-      // ลบจากรายการผู้ได้รับรางวัล
-      db.run("DELETE FROM winners WHERE id = ?", [winnerId]);
+    // 1. คืนของรางวัลกลับเข้าระบบ (+1)
+    db.run("UPDATE prizes SET remaining_amount = remaining_amount + 1 WHERE id = ?", [winner.prize_id], (errPrize) => {
+      if (errPrize) console.error("Error returning prize:", errPrize);
 
-      const cancelResult = { 
-        success: true, 
-        message: "ยกเลิกผลรางวัลเรียบร้อย",
-        winner_id: parseInt(winnerId),
-        prize_id: winner.prize_id,
-        employee_id: winner.employee_id,
-        status: empStatus
-      };
-      if (stageState.selectedPrize && stageState.selectedPrize.id === winner.prize_id) {
-        stageState.selectedPrize.remaining_amount = (stageState.selectedPrize.remaining_amount || 0) + 1;
-      }
-      broadcastToStage('winner_cancelled', cancelResult);
+      // 2. ปรับสถานะพนักงาน (eligible = คืนสิทธิ์, absent = ตัดสิทธิ์)
+      db.run("UPDATE employees SET status = ? WHERE id = ?", [empStatus, winner.employee_id], (errEmp) => {
+        if (errEmp) console.error("Error updating employee status:", errEmp);
 
-      res.json(cancelResult);
+        // 3. ลบประวัติผู้ชนะออกจาก winners
+        db.run("DELETE FROM winners WHERE id = ?", [winnerId], (errDel) => {
+          if (errDel) {
+            console.error("Error deleting winner:", errDel);
+            return res.status(500).json({ error: "เกิดข้อผิดพลาดในการยกเลิกรางวัล" });
+          }
+
+          const cancelResult = { 
+            success: true, 
+            message: "ยกเลิกผลรางวัลเรียบร้อย",
+            winner_id: parseInt(winnerId, 10),
+            prize_id: winner.prize_id,
+            employee_id: winner.employee_id,
+            status: empStatus
+          };
+
+          if (stageState.selectedPrize && stageState.selectedPrize.id === winner.prize_id) {
+            stageState.selectedPrize.remaining_amount = (stageState.selectedPrize.remaining_amount || 0) + 1;
+          }
+          broadcastToStage('winner_cancelled', cancelResult);
+
+          res.json(cancelResult);
+        });
+      });
     });
   });
 });
