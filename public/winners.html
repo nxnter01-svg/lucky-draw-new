@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สรุปรายชื่อผู้ได้รับรางวัล - หน่วยบัญชาการอากาศโยธิน</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Prompt', sans-serif; }
+    body { background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fdf4ff 100%); min-height: 100vh; }
+    .card-in { animation: cardIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes cardIn {
+      0% { opacity: 0; transform: translateY(-16px) scale(0.97); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .prize-group-header {
+      background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    }
+    .winner-row:nth-child(even) { background: rgba(253, 242, 248, 0.6); }
+    .winner-row:hover { background: rgba(252, 231, 243, 0.8); }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white; }
+      .prize-group-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body class="text-slate-800">
+
+  <!-- Header -->
+  <header class="bg-white/90 backdrop-blur border-b border-pink-200 shadow-sm sticky top-0 z-10 no-print">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <img src="logo.png" alt="โลโก้" class="w-10 h-10 object-contain">
+        <div>
+          <h1 class="text-lg sm:text-xl font-black text-pink-600 leading-tight">สรุปรายชื่อผู้ได้รับรางวัล</h1>
+          <p class="text-xs text-slate-400 font-medium">หน่วยบัญชาการอากาศโยธิน</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- สถานะการเชื่อมต่อ -->
+        <span id="syncBadge" class="text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block"></span>
+          <span id="syncText">🟢 Live</span>
+        </span>
+        <!-- ปุ่มพิมพ์ -->
+        <button onclick="window.print()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl border border-slate-200 transition flex items-center gap-1.5">
+          🖨️ <span class="hidden sm:inline">พิมพ์</span>
+        </button>
+        <!-- ปุ่มโหลดใหม่ -->
+        <button onclick="loadWinners()" class="text-xs bg-pink-500 hover:bg-pink-600 text-white font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
+          🔄 <span class="hidden sm:inline">รีเฟรช</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- Summary Cards -->
+    <div id="summaryBar" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="bg-white rounded-2xl border border-pink-200 p-4 text-center shadow-sm">
+        <div class="text-3xl font-black text-pink-600" id="statTotal">-</div>
+        <div class="text-xs text-slate-500 font-bold mt-1">ผู้ได้รับรางวัลทั้งหมด</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-pink-200 p-4 text-center shadow-sm">
+        <div class="text-3xl font-black text-rose-600" id="statPrizes">-</div>
+        <div class="text-xs text-slate-500 font-bold mt-1">ประเภทรางวัล</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-pink-200 p-4 text-center shadow-sm">
+        <div class="text-3xl font-black text-amber-600" id="statDepts">-</div>
+        <div class="text-xs text-slate-500 font-bold mt-1">สังกัดที่ได้รับรางวัล</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-pink-200 p-4 text-center shadow-sm">
+        <div class="text-xs font-bold text-slate-400 mb-1">อัปเดตล่าสุด</div>
+        <div class="text-sm font-black text-slate-700" id="statUpdated">-</div>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="no-print flex flex-wrap items-center gap-3 bg-white border border-pink-100 rounded-2xl px-4 py-3 shadow-sm">
+      <span class="text-xs font-black text-slate-500 uppercase tracking-wider">กรอง:</span>
+      <input id="searchInput" type="text" placeholder="🔍 ค้นหาชื่อ / รหัส / สังกัด..." oninput="renderAll()"
+        class="flex-1 min-w-[180px] text-sm border border-pink-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-pink-50/50">
+      <select id="prizeFilter" onchange="renderAll()"
+        class="text-sm border border-pink-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-pink-50/50">
+        <option value="">ทุกรางวัล</option>
+      </select>
+      <select id="viewMode" onchange="renderAll()"
+        class="text-sm border border-pink-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-pink-50/50">
+        <option value="grouped">จัดกลุ่มตามรางวัล</option>
+        <option value="table">ตารางรายชื่อทั้งหมด</option>
+      </select>
+    </div>
+
+    <!-- Winners List -->
+    <div id="winnersContainer">
+      <div class="text-center py-16 text-slate-400">
+        <div class="text-4xl mb-3">⏳</div>
+        <div class="font-bold">กำลังโหลดข้อมูล...</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Print Header (print only) -->
+  <div class="hidden print:block text-center mb-6">
+    <h1 class="text-2xl font-black text-slate-800">สรุปรายชื่อผู้ได้รับรางวัล</h1>
+    <p class="text-sm text-slate-500">หน่วยบัญชาการอากาศโยธิน — พิมพ์เมื่อ <span id="printDate"></span></p>
+  </div>
+
+  <script>
+    const isFile = window.location.protocol === 'file:';
+    const SERVER_ORIGIN = isFile ? 'http://localhost:3000' : window.location.origin;
+    const API = `${SERVER_ORIGIN}/api`;
+
+    let allWinners = [];
+    let eventSource = null;
+
+    // โหลดข้อมูลผู้ชนะ
+    async function loadWinners() {
+      try {
+        const res = await fetch(`${API}/winners`);
+        if (!res.ok) throw new Error('fetch failed');
+        allWinners = await res.json();
+        updateStats();
+        populatePrizeFilter();
+        renderAll();
+        document.getElementById('statUpdated').textContent = new Date().toLocaleTimeString('th-TH');
+      } catch (e) {
+        document.getElementById('winnersContainer').innerHTML = `
+          <div class="text-center py-16 text-rose-400">
+            <div class="text-4xl mb-3">❌</div>
+            <div class="font-bold">ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้</div>
+            <div class="text-sm mt-1">ตรวจสอบว่าเซิร์ฟเวอร์กำลังทำงานอยู่</div>
+          </div>`;
+      }
+    }
+
+    // อัปเดต summary stats
+    function updateStats() {
+      document.getElementById('statTotal').textContent = allWinners.length;
+      const prizes = new Set(allWinners.map(w => w.prize_name));
+      const depts = new Set(allWinners.map(w => w.department).filter(Boolean));
+      document.getElementById('statPrizes').textContent = prizes.size;
+      document.getElementById('statDepts').textContent = depts.size;
+    }
+
+    // เติม dropdown filter รางวัล
+    function populatePrizeFilter() {
+      const sel = document.getElementById('prizeFilter');
+      const current = sel.value;
+      const prizes = [...new Set(allWinners.map(w => w.prize_name))];
+      sel.innerHTML = '<option value="">ทุกรางวัล</option>' +
+        prizes.map(p => `<option value="${p}" ${p === current ? 'selected' : ''}>${p}</option>`).join('');
+    }
+
+    // กรองข้อมูล
+    function getFiltered() {
+      const search = (document.getElementById('searchInput').value || '').toLowerCase();
+      const prizeFilter = document.getElementById('prizeFilter').value;
+      return allWinners.filter(w => {
+        const name = (w.employee_name || `${w.rank || ''} ${w.first_name || ''} ${w.last_name || ''}`.trim()).toLowerCase();
+        const code = (w.emp_code || '').toLowerCase();
+        const dept = (w.department || '').toLowerCase();
+        const matchSearch = !search || name.includes(search) || code.includes(search) || dept.includes(search);
+        const matchPrize = !prizeFilter || w.prize_name === prizeFilter;
+        return matchSearch && matchPrize;
+      });
+    }
+
+    // render ทั้งหมด
+    function renderAll() {
+      const mode = document.getElementById('viewMode').value;
+      const data = getFiltered();
+      if (mode === 'grouped') renderGrouped(data);
+      else renderTable(data);
+    }
+
+    // render แบบ grouped ตามรางวัล
+    function renderGrouped(data) {
+      const container = document.getElementById('winnersContainer');
+      if (data.length === 0) {
+        container.innerHTML = emptyState();
+        return;
+      }
+
+      // จัดกลุ่มตาม prize_name
+      const groups = {};
+      data.forEach(w => {
+        if (!groups[w.prize_name]) groups[w.prize_name] = { prize: w, members: [] };
+        groups[w.prize_name].members.push(w);
+      });
+
+      container.innerHTML = Object.values(groups).map((g, gi) => `
+        <div class="bg-white rounded-2xl border border-pink-200 shadow-sm overflow-hidden mb-4 card-in" style="animation-delay:${gi * 0.05}s">
+          <!-- Prize Header -->
+          <div class="prize-group-header px-5 py-3 flex items-center gap-3">
+            ${g.prize.prize_image_url
+              ? `<img src="${g.prize.prize_image_url}" alt="${g.prize.prize_name}" class="w-10 h-10 object-contain rounded-lg bg-white/20 p-1">`
+              : `<span class="text-2xl">🏆</span>`}
+            <div class="flex-1">
+              <div class="font-black text-white text-base sm:text-lg">${g.prize.prize_name}</div>
+              <div class="text-pink-100 text-xs font-bold">${g.members.length} ท่าน</div>
+            </div>
+          </div>
+          <!-- Winners in this prize -->
+          <div class="divide-y divide-pink-50">
+            ${g.members.map((w, i) => `
+              <div class="winner-row flex items-center gap-3 px-5 py-3 transition-colors">
+                <span class="w-6 h-6 rounded-full bg-pink-100 text-pink-700 text-[11px] font-black flex items-center justify-center shrink-0">${i + 1}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-black text-slate-800 text-sm sm:text-base truncate">
+                    ${w.employee_name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim()}
+                  </div>
+                  <div class="text-xs text-pink-600 font-bold">🎖️ ${w.department || '-'}</div>
+                </div>
+                <div class="text-right shrink-0">
+                  <div class="font-mono text-xs text-slate-400 font-bold">${w.emp_code || '-'}</div>
+                  <div class="text-[11px] text-slate-300">${formatTime(w.won_at)}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // render แบบ table
+    function renderTable(data) {
+      const container = document.getElementById('winnersContainer');
+      if (data.length === 0) {
+        container.innerHTML = emptyState();
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl border border-pink-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-pink-50 border-b border-pink-200">
+                  <th class="text-left px-4 py-3 font-black text-pink-700 text-xs">#</th>
+                  <th class="text-left px-4 py-3 font-black text-pink-700 text-xs">ชื่อ-นามสกุล</th>
+                  <th class="text-left px-4 py-3 font-black text-pink-700 text-xs">รหัส</th>
+                  <th class="text-left px-4 py-3 font-black text-pink-700 text-xs">สังกัด</th>
+                  <th class="text-left px-4 py-3 font-black text-pink-700 text-xs">รางวัลที่ได้รับ</th>
+                  <th class="text-left px-4 py-3 font-black text-pink-700 text-xs">เวลา</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-pink-50">
+                ${data.map((w, i) => `
+                  <tr class="winner-row transition-colors">
+                    <td class="px-4 py-3 text-slate-400 font-bold text-xs">${i + 1}</td>
+                    <td class="px-4 py-3 font-black text-slate-800">
+                      ${w.employee_name || `${w.rank ? w.rank + ' ' : ''}${w.first_name || ''} ${w.last_name || ''}`.trim()}
+                    </td>
+                    <td class="px-4 py-3 font-mono text-xs text-slate-500">${w.emp_code || '-'}</td>
+                    <td class="px-4 py-3 text-xs text-pink-600 font-bold">${w.department || '-'}</td>
+                    <td class="px-4 py-3">
+                      <span class="inline-flex items-center gap-1.5 bg-pink-50 border border-pink-200 text-pink-700 text-xs font-black px-2.5 py-1 rounded-xl">
+                        🎁 ${w.prize_name}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-xs text-slate-400">${formatTime(w.won_at)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="px-5 py-3 border-t border-pink-100 text-xs text-slate-400 font-bold">
+            แสดง ${data.length} รายการ จากทั้งหมด ${allWinners.length} รายการ
+          </div>
+        </div>
+      `;
+    }
+
+    function emptyState() {
+      return `<div class="text-center py-16 text-slate-400">
+        <div class="text-4xl mb-3">🎯</div>
+        <div class="font-bold">ยังไม่มีผู้ได้รับรางวัล</div>
+        <div class="text-sm mt-1">ผลจะปรากฏอัตโนมัติเมื่อมีการจับรางวัล</div>
+      </div>`;
+    }
+
+    function formatTime(ts) {
+      if (!ts) return '-';
+      try {
+        return new Date(ts).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: 'short' });
+      } catch { return ts; }
+    }
+
+    // เชื่อมต่อ SSE เพื่อ auto-refresh เมื่อมีการจับรางวัลใหม่
+    function connectStream() {
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource(`${API}/stage-stream`);
+
+      eventSource.onopen = () => {
+        document.getElementById('syncBadge').className = 'text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200';
+        document.getElementById('syncText').textContent = '🟢 Live';
+      };
+
+      eventSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          // โหลดใหม่เมื่อมีการประกาศผลหรือยกเลิก
+          if (data.type === 'stage_update' && (data.status === 'winner_revealed' || data.status === 'winner_cancelled')) {
+            setTimeout(loadWinners, 800);
+          }
+        } catch {}
+      };
+
+      eventSource.onerror = () => {
+        document.getElementById('syncBadge').className = 'text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 bg-rose-50 text-rose-600 border border-rose-200';
+        document.getElementById('syncText').textContent = '🔴 ออฟไลน์';
+        setTimeout(connectStream, 5000);
+      };
+    }
+
+    // เริ่มต้น
+    document.getElementById('printDate').textContent = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    loadWinners();
+    connectStream();
+
+    // auto-refresh ทุก 30 วิ เผื่อ SSE หลุด
+    setInterval(loadWinners, 30000);
+  </script>
+</body>
+</html>

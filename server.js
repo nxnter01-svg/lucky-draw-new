@@ -24,6 +24,11 @@ app.get('/screen', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'display.html'));
 });
 
+// Route for Winners Log page
+app.get(['/winners', '/winners.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'winners.html'));
+});
+
 // Route aliases for Admin dashboard
 app.get(['/ICTAdMin.html', '/ictadmin.html', '/ICTAdMin', '/ictadmin'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'ICTAdMin.html'));
