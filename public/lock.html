@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการคิวรางวัลพิเศษ (VIP Lock System)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Prompt', sans-serif; }
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+      min-height: 100vh;
+      color: #f8fafc;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .prize-card-active {
+      border-color: #ec4899 !important;
+      background: rgba(236, 72, 153, 0.15) !important;
+      box-shadow: 0 0 20px rgba(236, 72, 153, 0.25);
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); border-radius: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(236, 72, 153, 0.5); border-radius: 8px; }
+  </style>
+</head>
+<body class="pb-12">
+
+  <!-- Header -->
+  <header class="border-b border-slate-700/80 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-xl shadow-lg shadow-pink-500/30">
+          🎯
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-black text-white tracking-wide flex items-center gap-2">
+            ระบบล็อคผลรางวัลล่วงหน้า
+            <span class="text-[11px] bg-pink-500/20 text-pink-300 border border-pink-500/40 px-2.5 py-0.5 rounded-full font-bold">VIP Control</span>
+          </h1>
+          <p class="text-xs text-slate-400">เลือกรางวัล + เลือกชื่อคนที่ต้องการ → เมื่อหน้าเวทีกดสุ่มรางวัลนั้น จะออกชื่อคนที่ล็อคไว้ทันทีแบบเนียน 100%</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <div id="stageLiveBadge" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span class="text-slate-300">เวทีกำลังเลือก: <strong id="stageActivePrizeText" class="text-amber-300">รอเลือก...</strong></span>
+        </div>
+        <button onclick="refreshAll()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5">
+          🔄 รีเฟรช
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 pt-6 space-y-6">
+
+    <!-- ขั้นตอนที่ 1: เลือกของรางวัลที่จะล็อค -->
+    <section class="glass-card rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="w-7 h-7 rounded-full bg-pink-500 text-white font-black text-sm flex items-center justify-center">1</span>
+          <h2 class="text-base sm:text-lg font-black text-white">เลือกของรางวัลที่ต้องการล็อคผล</h2>
+        </div>
+        <span class="text-xs text-slate-400">คลิกที่การ์ดรางวัลด้านล่างเพื่อเลือกรางวัลที่จะล็อคคนใส่</span>
+      </div>
+
+      <div id="prizesGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+        <div class="text-slate-400 text-sm py-6 text-center col-span-full">กำลังโหลดรายการของรางวัล...</div>
+      </div>
+    </section>
+
+    <!-- ขั้นตอนที่ 2 และ รายการที่ล็อคไว้แล้ว -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- ฝั่งซ้าย (7 Col): ค้นหาและเลือกรายชื่อคนที่จะล็อค -->
+      <section class="lg:col-span-7 glass-card rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-full bg-pink-500 text-white font-black text-sm flex items-center justify-center">2</span>
+            <div>
+              <h2 class="text-base sm:text-lg font-black text-white">เลือกรายชื่อผู้ที่จะได้รับรางวัล</h2>
+              <p class="text-xs text-pink-300 font-bold" id="selectedPrizeLabel">กรุณาเลือกของรางวัลในขั้นตอนที่ 1 ก่อน</p>
+            </div>
+          </div>
+          <span id="eligibleCountBadge" class="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1 rounded-full font-bold">
+            ผู้มีสิทธิ์ 0 คน
+          </span>
+        </div>
+
+        <!-- แถบค้นหาและกรองสังกัด -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div class="sm:col-span-2 relative">
+            <input id="empSearchInput" type="text" oninput="renderEmployeeList()" placeholder="🔍 พิมพ์ค้นหาชื่อ, นามสกุล, ยศ หรือรหัส..."
+              class="w-full bg-slate-900/90 border border-slate-600 focus:border-pink-500 rounded-2xl px-4 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none">
+          </div>
+          <div>
+            <select id="deptFilterSelect" onchange="renderEmployeeList()"
+              class="w-full bg-slate-900/90 border border-slate-600 focus:border-pink-500 rounded-2xl px-3 py-2.5 text-sm text-white focus:outline-none">
+              <option value="all">ทุกสังกัด</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- รายชื่อพนักงาน -->
+        <div id="employeeListContainer" class="space-y-2 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar flex-1">
+          <div class="text-center py-12 text-slate-400 text-sm">กำลังโหลดรายชื่อ...</div>
+        </div>
+      </section>
+
+      <!-- ฝั่งขวา (5 Col): คิวที่ล็อคไว้แล้ว (Active Locks) -->
+      <section class="lg:col-span-5 glass-card rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col space-y-4">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🔒</span>
+            <div>
+              <h2 class="text-base sm:text-lg font-black text-white">รายการที่ล็อคผลไว้แล้ว</h2>
+              <p class="text-xs text-slate-400">เมื่อหน้าเวทีกดสุ่มรางวัลนั้น รายชื่อในคิวจะออกทันที</p>
+            </div>
+          </div>
+          <button onclick="clearAllLocks()" id="clearAllBtn" class="hidden text-xs bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 px-3 py-1.5 rounded-xl font-bold transition">
+            🗑️ ล้างทั้งหมด
+          </button>
+        </div>
+
+        <div id="lockedQueueContainer" class="space-y-3 max-h-[520px] overflow-y-auto pr-1 custom-scrollbar flex-1">
+          <div class="text-center py-12 text-slate-400 text-sm">ยังไม่มีรายการที่ล็อคไว้</div>
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Toast แจ้งเตือน -->
+  <div id="toastBox" class="fixed bottom-5 right-5 z-50 hidden bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-2 border border-emerald-400">
+    <span id="toastText">บันทึกสำเร็จ</span>
+  </div>
+
+  <script>
+    const isFile = window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null';
+    const SERVER_ORIGIN = isFile ? 'http://localhost:3000' : window.location.origin;
+    const API = `${SERVER_ORIGIN}/api`;
+
+    let prizes = [];
+    let employees = [];
+    let locks = [];
+    let selectedPrizeId = null;
+    let stageSelectedPrizeId = null;
+
+    function showToast(msg, isError = false) {
+      const box = document.getElementById('toastBox');
+      const txt = document.getElementById('toastText');
+      txt.textContent = msg;
+      box.className = `fixed bottom-5 right-5 z-50 px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-2 border transition-all ${
+        isError ? 'bg-rose-600 text-white border-rose-400' : 'bg-emerald-600 text-white border-emerald-400'
+      }`;
+      box.classList.remove('hidden');
+      setTimeout(() => box.classList.add('hidden'), 2800);
+    }
+
+    async function refreshAll() {
+      await Promise.all([loadPrizes(), loadEmployees(), loadLocks(), loadStageStatus()]);
+      renderPrizes();
+      renderEmployeeList();
+      renderLockedQueue();
+    }
+
+    async function loadPrizes() {
+      try {
+        const res = await fetch(`${API}/admin/prizes`);
+        prizes = await res.json();
+        if (!selectedPrizeId && prizes.length > 0) {
+          const firstAvail = prizes.find(p => p.remaining_amount > 0) || prizes[0];
+          selectedPrizeId = firstAvail.id;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function loadEmployees() {
+      try {
+        const res = await fetch(`${API}/employees`);
+        employees = await res.json();
+        populateDepartments();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function loadLocks() {
+      try {
+        const res = await fetch(`${API}/locks`);
+        locks = await res.json();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function loadStageStatus() {
+      try {
+        const res = await fetch(`${API}/stage-status`);
+        const data = await res.json();
+        if (data && data.selectedPrize) {
+          stageSelectedPrizeId = data.selectedPrize.id;
+          document.getElementById('stageActivePrizeText').textContent = data.selectedPrize.name;
+        }
+      } catch (e) {}
+    }
+
+    function populateDepartments() {
+      const select = document.getElementById('deptFilterSelect');
+      const current = select.value;
+      const depts = [...new Set(employees.map(e => e.department).filter(Boolean))].sort();
+      select.innerHTML = `<option value="all">ทุกสังกัด (${employees.filter(e => e.status === 'eligible').length} คน)</option>` +
+        depts.map(d => `<option value="${d}" ${d === current ? 'selected' : ''}>${d}</option>`).join('');
+    }
+
+    function selectPrize(id) {
+      selectedPrizeId = Number(id);
+      renderPrizes();
+      renderEmployeeList();
+    }
+
+    function renderPrizes() {
+      const grid = document.getElementById('prizesGrid');
+      if (!prizes || prizes.length === 0) {
+        grid.innerHTML = `<div class="text-slate-400 text-sm py-6 text-center col-span-full">ยังไม่มีข้อมูลของรางวัล</div>`;
+        return;
+      }
+
+      const selectedPrize = prizes.find(p => Number(p.id) === Number(selectedPrizeId));
+      const labelEl = document.getElementById('selectedPrizeLabel');
+      if (selectedPrize) {
+        labelEl.innerHTML = `กำลังเลือกเพื่อล็อคใส่รางวัล: <span class="text-amber-300 underline">${selectedPrize.name}</span> (คงเหลือ ${selectedPrize.remaining_amount}/${selectedPrize.total_amount})`;
+      } else {
+        labelEl.textContent = 'กรุณาเลือกของรางวัลในขั้นตอนที่ 1 ก่อน';
+      }
+
+      grid.innerHTML = prizes.map(p => {
+        const isSelected = Number(p.id) === Number(selectedPrizeId);
+        const isStageActive = Number(p.id) === Number(stageSelectedPrizeId);
+        const lockedCount = locks.filter(l => Number(l.prize_id) === Number(p.id) && l.employee_status === 'eligible').length;
+        const isOut = p.remaining_amount <= 0;
+
+        return `
+          <div onclick="selectPrize(${p.id})"
+            class="cursor-pointer rounded-2xl p-3.5 border transition-all flex items-center gap-3 relative ${
+              isSelected ? 'prize-card-active' : 'bg-slate-800/70 border-slate-700 hover:border-slate-500'
+            } ${isOut ? 'opacity-50' : ''}">
+            ${p.image_url
+              ? `<img src="${p.image_url}" class="w-12 h-12 rounded-xl object-contain bg-white p-1 shrink-0">`
+              : `<div class="w-12 h-12 rounded-xl bg-slate-700 flex items-center justify-center text-2xl shrink-0">🎁</div>`
+            }
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-black text-sm text-white truncate">${p.name}</span>
+                ${isStageActive ? `<span class="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.2 rounded-md font-bold">📺 บนเวที</span>` : ''}
+              </div>
+              <div class="text-xs text-slate-400 mt-0.5 flex items-center justify-between">
+                <span>เหลือ <strong class="${isOut ? 'text-rose-400' : 'text-emerald-400'}">${p.remaining_amount}</strong>/${p.total_amount}</span>
+                ${lockedCount > 0
+                  ? `<span class="bg-pink-500 text-white text-[11px] font-black px-2 py-0.5 rounded-full">🔒 ล็อค ${lockedCount} คน</span>`
+                  : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderEmployeeList() {
+      const container = document.getElementById('employeeListContainer');
+      const search = (document.getElementById('empSearchInput').value || '').trim().toLowerCase();
+      const dept = document.getElementById('deptFilterSelect').value;
+
+      const eligibleList = employees.filter(e => e.status === 'eligible');
+      document.getElementById('eligibleCountBadge').textContent = `ผู้มีสิทธิ์ ${eligibleList.length} คน`;
+
+      const filtered = eligibleList.filter(e => {
+        const fullName = (e.name || `${e.rank || ''} ${e.first_name || ''} ${e.last_name || ''}`).toLowerCase();
+        const code = (e.emp_code || '').toLowerCase();
+        const d = (e.department || '').toLowerCase();
+        const matchSearch = !search || fullName.includes(search) || code.includes(search) || d.includes(search);
+        const matchDept = dept === 'all' || e.department === dept;
+        return matchSearch && matchDept;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="text-center py-12 text-slate-400 text-sm">ไม่พบรายชื่อที่ค้นหา</div>`;
+        return;
+      }
+
+      const lockByEmpId = {};
+      locks.forEach(l => { lockByEmpId[Number(l.employee_id)] = l; });
+
+      container.innerHTML = filtered.slice(0, 120).map(e => {
+        const fullName = e.name || `${e.rank ? e.rank + ' ' : ''}${e.first_name || ''} ${e.last_name || ''}`.trim();
+        const existingLock = lockByEmpId[Number(e.id)];
+        const isLockedThisPrize = existingLock && Number(existingLock.prize_id) === Number(selectedPrizeId);
+
+        return `
+          <div class="bg-slate-800/80 hover:bg-slate-800 border ${isLockedThisPrize ? 'border-pink-500/70 bg-pink-950/20' : 'border-slate-700/80'} rounded-2xl px-4 py-2.5 flex items-center justify-between gap-3 transition">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-bold text-sm sm:text-base text-white">${fullName}</span>
+                ${e.special_type && e.special_type !== 'ปกติ'
+                  ? `<span class="text-[11px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-2 py-0.5 rounded-full font-bold">${e.special_type}</span>`
+                  : ''}
+                ${existingLock
+                  ? `<span class="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full font-bold">🔒 ล็อคไว้กับ: ${existingLock.prize_name}</span>`
+                  : ''}
+              </div>
+              <div class="text-xs text-slate-400 flex items-center gap-3 mt-0.5">
+                <span>🎖️ ${e.department || '-'}</span>
+                <span class="font-mono text-slate-500">${e.emp_code || ''}</span>
+              </div>
+            </div>
+
+            <div class="shrink-0">
+              ${isLockedThisPrize
+                ? `<button onclick="removeLock(${existingLock.lock_id})" class="text-xs bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 border border-rose-500/40 font-bold px-3.5 py-2 rounded-xl transition">
+                    ✅ ล็อครางวัลนี้แล้ว (คลิกเพื่อยกเลิก)
+                  </button>`
+                : `<button onclick="lockEmployee(${e.id})" class="text-xs bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-black px-4 py-2 rounded-xl shadow-md shadow-pink-500/20 transition">
+                    🎯 ล็อคให้ได้รางวัลนี้
+                  </button>`
+              }
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderLockedQueue() {
+      const container = document.getElementById('lockedQueueContainer');
+      const clearBtn = document.getElementById('clearAllBtn');
+
+      if (!locks || locks.length === 0) {
+        clearBtn.classList.add('hidden');
+        container.innerHTML = `
+          <div class="text-center py-14 text-slate-400 space-y-2">
+            <div class="text-4xl">🔓</div>
+            <div class="font-bold text-sm">ยังไม่มีรายชื่อที่ล็อคไว้</div>
+            <div class="text-xs text-slate-500">การกดสุ่มบนเวทีจะเป็นการสุ่มปกติ 100%</div>
+          </div>
+        `;
+        return;
+      }
+
+      clearBtn.classList.remove('hidden');
+
+      // จัดกลุ่มตามรางวัล
+      const groups = {};
+      locks.forEach(l => {
+        if (!groups[l.prize_id]) {
+          groups[l.prize_id] = {
+            prize_id: l.prize_id,
+            prize_name: l.prize_name,
+            prize_remaining: l.prize_remaining,
+            prize_total: l.prize_total,
+            items: []
+          };
+        }
+        groups[l.prize_id].items.push(l);
+      });
+
+      container.innerHTML = Object.values(groups).map(g => `
+        <div class="bg-slate-900/90 border border-pink-500/40 rounded-2xl overflow-hidden">
+          <div class="bg-gradient-to-r from-pink-600/30 to-rose-600/20 border-b border-pink-500/30 px-4 py-2.5 flex items-center justify-between">
+            <div>
+              <div class="font-black text-sm text-pink-300">🎁 ${g.prize_name}</div>
+              <div class="text-[11px] text-slate-400">รางวัลคงเหลือ ${g.prize_remaining}/${g.prize_total} • ล็อคไว้ ${g.items.length} คน</div>
+            </div>
+          </div>
+          <div class="divide-y divide-slate-800">
+            ${g.items.map((item, idx) => {
+              const fullName = item.employee_name || `${item.rank ? item.rank + ' ' : ''}${item.first_name || ''} ${item.last_name || ''}`.trim();
+              const isEligible = item.employee_status === 'eligible';
+              return `
+                <div class="px-4 py-3 flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <span class="w-6 h-6 rounded-full bg-pink-500/20 border border-pink-500/50 text-pink-300 text-xs font-black flex items-center justify-center shrink-0">
+                      ${idx + 1}
+                    </span>
+                    <div class="min-w-0">
+                      <div class="font-bold text-sm text-white truncate">${fullName}</div>
+                      <div class="text-xs text-slate-400">
+                        🎖️ ${item.department || '-'} • <span class="font-mono">${item.emp_code || ''}</span>
+                        ${!isEligible ? `<span class="text-rose-400 font-bold ml-1">(ได้รางวัลไปแล้ว)</span>` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <button onclick="removeLock(${item.lock_id})" class="text-xs bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg transition shrink-0">
+                    ❌ ยกเลิก
+                  </button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function lockEmployee(employeeId) {
+      if (!selectedPrizeId) {
+        showToast('กรุณาเลือกของรางวัลในขั้นตอนที่ 1 ก่อนครับ', true);
+        return;
+      }
+      try {
+        const res = await fetch(`${API}/locks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prize_id: selectedPrizeId, employee_id: employeeId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'ล็อคไม่สำเร็จ');
+        await loadLocks();
+        renderPrizes();
+        renderEmployeeList();
+        renderLockedQueue();
+        showToast('🔒 ล็อคผลรางวัลเรียบร้อยแล้ว!');
+      } catch (e) {
+        showToast(e.message, true);
+      }
+    }
+
+    async function removeLock(lockId) {
+      try {
+        await fetch(`${API}/locks/${lockId}`, { method: 'DELETE' });
+        await loadLocks();
+        renderPrizes();
+        renderEmployeeList();
+        renderLockedQueue();
+        showToast('ยกเลิกการล็อคแล้ว');
+      } catch (e) {
+        showToast('เกิดข้อผิดพลาดในการยกเลิก', true);
+      }
+    }
+
+    async function clearAllLocks() {
+      if (!confirm('ยืนยันการล้างรายชื่อที่ล็อคไว้ทั้งหมด?')) return;
+      try {
+        await fetch(`${API}/locks`, { method: 'DELETE' });
+        await loadLocks();
+        renderPrizes();
+        renderEmployeeList();
+        renderLockedQueue();
+        showToast('ล้างคิวล็อคทั้งหมดเรียบร้อย');
+      } catch (e) {
+        showToast('เกิดข้อผิดพลาด', true);
+      }
+    }
+
+    // เชื่อมต่อ SSE เพื่ออัปเดตสดเมื่อหน้าเวทีเปลี่ยนรางวัลหรือกดสุ่ม
+    function connectSSE() {
+      const es = new EventSource(`${API}/stage-stream`);
+      es.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.event === 'prize_selected' && msg.data && msg.data.prize) {
+            stageSelectedPrizeId = msg.data.prize.id;
+            document.getElementById('stageActivePrizeText').textContent = msg.data.prize.name;
+            renderPrizes();
+          } else if (msg.event === 'draw_result' || msg.event === 'winner_cancelled' || msg.event === 'SystemReset') {
+            refreshAll();
+          }
+        } catch (err) {}
+      };
+      es.onerror = () => {
+        setTimeout(connectSSE, 5000);
+      };
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      refreshAll();
+      connectSSE();
+    });
+  </script>
+</body>
+</html>

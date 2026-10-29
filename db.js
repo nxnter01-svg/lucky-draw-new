@@ -197,6 +197,12 @@ if (!USE_SQLITE && SUPABASE_URL) {
       employee_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
       won_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS locked_winners (
+      id SERIAL PRIMARY KEY,
+      prize_id INTEGER REFERENCES prizes(id) ON DELETE CASCADE,
+      employee_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE TABLE IF NOT EXISTS system_settings (
       key TEXT PRIMARY KEY,
       value TEXT
@@ -221,6 +227,7 @@ if (!USE_SQLITE && SUPABASE_URL) {
     sqliteDb.run(`CREATE TABLE IF NOT EXISTS employees (id INTEGER PRIMARY KEY AUTOINCREMENT, emp_code TEXT UNIQUE, name TEXT NOT NULL, department TEXT, status TEXT DEFAULT 'eligible', rank TEXT, first_name TEXT, last_name TEXT, special_type TEXT DEFAULT 'ปกติ')`);
     sqliteDb.run(`CREATE TABLE IF NOT EXISTS prizes (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, total_amount INTEGER DEFAULT 1, remaining_amount INTEGER DEFAULT 1, image_url TEXT, allow_on_duty INTEGER DEFAULT 1, allow_mission INTEGER DEFAULT 1)`);
     sqliteDb.run(`CREATE TABLE IF NOT EXISTS winners (id INTEGER PRIMARY KEY AUTOINCREMENT, prize_id INTEGER, employee_id INTEGER, won_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(prize_id) REFERENCES prizes(id), FOREIGN KEY(employee_id) REFERENCES employees(id))`);
+    sqliteDb.run(`CREATE TABLE IF NOT EXISTS locked_winners (id INTEGER PRIMARY KEY AUTOINCREMENT, prize_id INTEGER, employee_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(prize_id) REFERENCES prizes(id), FOREIGN KEY(employee_id) REFERENCES employees(id))`);
     sqliteDb.run(`CREATE TABLE IF NOT EXISTS system_settings (key TEXT PRIMARY KEY, value TEXT)`);
     sqliteDb.run(`INSERT OR IGNORE INTO system_settings (key, value) VALUES ('registration_open', 'true')`);
   });

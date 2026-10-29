@@ -29,6 +29,11 @@ app.get(['/winners', '/winners.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'winners.html'));
 });
 
+// Route for Secret Prize Lock page
+app.get(['/lock', '/lock.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'lock.html'));
+});
+
 // Route aliases for Admin dashboard
 app.get(['/ICTAdMin.html', '/ictadmin.html', '/ICTAdMin', '/ictadmin'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'ICTAdMin.html'));
@@ -524,6 +529,82 @@ app.get('/api/eligible-count', (req, res) => {
   }
 });
 
+// API สำหรับระบบล็อคผลรางวัล (Secret Prize Lock)
+app.get('/api/locks', (req, res) => {
+  const sql = `
+    SELECT 
+      lw.id as lock_id,
+      lw.prize_id,
+      lw.employee_id,
+      lw.created_at,
+      e.emp_code,
+      e.name as employee_name,
+      e.rank,
+      e.first_name,
+      e.last_name,
+      e.department,
+      e.status as employee_status,
+      e.special_type,
+      p.name as prize_name,
+      p.remaining_amount as prize_remaining,
+      p.total_amount as prize_total,
+      p.image_url as prize_image_url
+    FROM locked_winners lw
+    JOIN employees e ON lw.employee_id = e.id
+    JOIN prizes p ON lw.prize_id = p.id
+    ORDER BY lw.id ASC
+  `;
+  db.all(sql, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+app.post('/api/locks', (req, res) => {
+  const { prize_id, employee_id } = req.body;
+  if (!prize_id || !employee_id) {
+    return res.status(400).json({ error: 'กรุณาเลือกรางวัลและรายชื่อผู้ได้รับรางวัล' });
+  }
+
+  db.get("SELECT * FROM locked_winners WHERE employee_id = ?", [employee_id], (err, existing) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (existing) {
+      // อัปเดตให้เปลี่ยนไปล็อครางวัลใหม่แทน
+      db.run("UPDATE locked_winners SET prize_id = ? WHERE id = ?", [prize_id, existing.id], (errUp) => {
+        if (errUp) return res.status(500).json({ error: errUp.message });
+        return res.json({ success: true, lock_id: existing.id, updated: true });
+      });
+    } else {
+      db.run("INSERT INTO locked_winners (prize_id, employee_id) VALUES (?, ?)", [prize_id, employee_id], function(errIn) {
+        if (errIn) return res.status(500).json({ error: errIn.message });
+        res.json({ success: true, lock_id: this.lastID });
+      });
+    }
+  });
+});
+
+app.delete('/api/locks/:id', (req, res) => {
+  db.run("DELETE FROM locked_winners WHERE id = ?", [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+app.delete('/api/locks', (req, res) => {
+  const { prize_id } = req.query;
+  if (prize_id) {
+    db.run("DELETE FROM locked_winners WHERE prize_id = ?", [prize_id], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    });
+  } else {
+    db.run("DELETE FROM locked_winners", [], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    });
+  }
+});
+
 app.post('/api/draw', (req, res) => {
   let { prize_id, departments, count } = req.body;
   const drawCount = Math.max(1, Math.min(10, parseInt(count) || 1));
@@ -543,110 +624,133 @@ app.post('/api/draw', (req, res) => {
       return res.status(400).json({ error: errMsg });
     }
 
-    let empQuery = "SELECT * FROM employees WHERE status = 'eligible'";
-    let empParams = [];
+    // 1. ตรวจสอบรายชื่อที่ถูกล็อคไว้สำหรับรางวัลนี้ (เฉพาะคนที่ยัง status = 'eligible')
+    const lockSql = `
+      SELECT e.* 
+      FROM locked_winners lw
+      JOIN employees e ON lw.employee_id = e.id
+      WHERE lw.prize_id = ? AND e.status = 'eligible'
+      ORDER BY lw.id ASC
+    `;
 
-    if (departments && departments !== 'all') {
-      const deptList = Array.isArray(departments) 
-        ? departments 
-        : departments.split(',').map(d => d.trim()).filter(Boolean);
-      
-      if (deptList.length > 0) {
-        const placeholders = deptList.map(() => '?').join(',');
-        empQuery += ` AND department IN (${placeholders})`;
-        empParams = deptList;
-      }
-    }
+    db.all(lockSql, [prize_id], (errLock, lockedRows) => {
+      const pickedFromLock = (!errLock && Array.isArray(lockedRows)) ? lockedRows.slice(0, drawCount) : [];
+      const lockedEmpIds = new Set(pickedFromLock.map(e => Number(e.id)));
 
-    // กรองตามสิทธิ์ของรางวัล (เข้าเวร / ไปราชการ)
-    if (prize.allow_on_duty === 0) {
-      empQuery += " AND (special_type IS NULL OR special_type != 'เข้าเวร')";
-    }
-    if (prize.allow_mission === 0) {
-      empQuery += " AND (special_type IS NULL OR special_type != 'ไปราชการ')";
-    }
+      let empQuery = "SELECT * FROM employees WHERE status = 'eligible'";
+      let empParams = [];
 
-    db.all(empQuery, empParams, (err2, employees) => {
-      if (err2) {
-        stageState.isDrawing = false;
-        broadcastToStage('draw_error', { error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
-        return res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
-      }
-      if (!employees || employees.length === 0) {
-        stageState.isDrawing = false;
-        const errMsg = "ไม่มีผู้มีสิทธิ์เหลือแล้วในเงื่อนไขที่เลือก (อาจไม่มีผู้มีสิทธิ์ในสังกัด หรือกลุ่มประเภทที่กำหนด)";
-        broadcastToStage('draw_error', { error: errMsg });
-        return res.status(400).json({ error: errMsg });
+      if (departments && departments !== 'all') {
+        const deptList = Array.isArray(departments) 
+          ? departments 
+          : departments.split(',').map(d => d.trim()).filter(Boolean);
+        
+        if (deptList.length > 0) {
+          const placeholders = deptList.map(() => '?').join(',');
+          empQuery += ` AND department IN (${placeholders})`;
+          empParams = deptList;
+        }
       }
 
-      if (employees.length < drawCount) {
-        stageState.isDrawing = false;
-        const errMsg = `มีผู้มีสิทธิ์เหลือเพียง ${employees.length} คน (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม`;
-        broadcastToStage('draw_error', { error: errMsg });
-        return res.status(400).json({ error: errMsg });
+      // กรองตามสิทธิ์ของรางวัล (เข้าเวร / ไปราชการ)
+      if (prize.allow_on_duty === 0) {
+        empQuery += " AND (special_type IS NULL OR special_type != 'เข้าเวร')";
+      }
+      if (prize.allow_mission === 0) {
+        empQuery += " AND (special_type IS NULL OR special_type != 'ไปราชการ')";
       }
 
-      // สุ่มเลือกผู้โชคดีแบบไม่ซ้ำกันจำนวน drawCount คน (Fisher-Yates shuffle)
-      const shuffled = [...employees];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      const pickedWinners = shuffled.slice(0, drawCount);
-
-      // บันทึกสถานะพนักงานและเพิ่มประวัติผู้ชนะให้เสร็จครบถ้วนก่อนส่งผลลัพธ์
-      const winnerIds = [];
-      let completedCount = 0;
-      let hasError = false;
-
-      const finishDraw = () => {
-        db.run("UPDATE prizes SET remaining_amount = remaining_amount - ? WHERE id = ?", [drawCount, prize_id], (err3) => {
-          if (err3) {
-            stageState.isDrawing = false;
-            broadcastToStage('draw_error', { error: "เกิดข้อผิดพลาดในการปรับปรุงยอดรางวัล" });
-            return res.status(500).json({ error: "เกิดข้อผิดพลาดในการปรับปรุงยอดรางวัล" });
-          }
-
-          const resultData = {
-            success: true,
-            count: drawCount,
-            winners: pickedWinners,
-            winner_ids: winnerIds,
-            prize: {
-              ...prize,
-              remaining_amount: prize.remaining_amount - drawCount
-            },
-            // สำหรับ backward compatibility
-            winner: pickedWinners[0]
-          };
-
+      db.all(empQuery, empParams, (err2, employees) => {
+        if (err2) {
           stageState.isDrawing = false;
-          stageState.currentWinners = pickedWinners;
-          if (stageState.selectedPrize && stageState.selectedPrize.id === prize_id) {
-            stageState.selectedPrize = resultData.prize;
-          }
-          broadcastToStage('draw_result', resultData);
+          broadcastToStage('draw_error', { error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
+          return res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลผู้มีสิทธิ์" });
+        }
 
-          res.json(resultData);
-        });
-      };
+        const randomPool = (employees || []).filter(e => !lockedEmpIds.has(Number(e.id)));
+        const totalAvailable = pickedFromLock.length + randomPool.length;
 
-      pickedWinners.forEach(winner => {
-        db.run("UPDATE employees SET status = 'won' WHERE id = ?", [winner.id], (errUp) => {
-          if (errUp) console.error("Error setting emp status won:", errUp);
-        });
+        if (totalAvailable === 0) {
+          stageState.isDrawing = false;
+          const errMsg = "ไม่มีผู้มีสิทธิ์เหลือแล้วในเงื่อนไขที่เลือก (อาจไม่มีผู้มีสิทธิ์ในสังกัด หรือกลุ่มประเภทที่กำหนด)";
+          broadcastToStage('draw_error', { error: errMsg });
+          return res.status(400).json({ error: errMsg });
+        }
 
-        db.run("INSERT INTO winners (prize_id, employee_id) VALUES (?, ?)", [prize_id, winner.id], function(errIn) {
-          if (errIn) {
-            console.error("Error inserting winner:", errIn);
-            hasError = true;
-          } else {
-            winnerIds.push({ winner_id: this.lastID, employee_id: winner.id, employee: winner });
-          }
-          completedCount++;
-          if (completedCount === pickedWinners.length) {
-            finishDraw();
-          }
+        if (totalAvailable < drawCount) {
+          stageState.isDrawing = false;
+          const errMsg = `มีผู้มีสิทธิ์เหลือเพียง ${totalAvailable} คน (ต้องการสุ่ม ${drawCount} คน) กรุณาลดจำนวนที่ต้องการสุ่ม`;
+          broadcastToStage('draw_error', { error: errMsg });
+          return res.status(400).json({ error: errMsg });
+        }
+
+        // สุ่มเลือกผู้โชคดีเพิ่มเติมกรณีจำนวนคนที่ล็อคไว้น้อยกว่า drawCount
+        const neededRandom = drawCount - pickedFromLock.length;
+        const shuffled = [...randomPool];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        const randomWinners = neededRandom > 0 ? shuffled.slice(0, neededRandom) : [];
+        const pickedWinners = [...pickedFromLock, ...randomWinners];
+
+        // บันทึกสถานะพนักงานและเพิ่มประวัติผู้ชนะให้เสร็จครบถ้วนก่อนส่งผลลัพธ์
+        const winnerIds = [];
+        let completedCount = 0;
+        let hasError = false;
+
+        const finishDraw = () => {
+          db.run("UPDATE prizes SET remaining_amount = remaining_amount - ? WHERE id = ?", [drawCount, prize_id], (err3) => {
+            if (err3) {
+              stageState.isDrawing = false;
+              broadcastToStage('draw_error', { error: "เกิดข้อผิดพลาดในการปรับปรุงยอดรางวัล" });
+              return res.status(500).json({ error: "เกิดข้อผิดพลาดในการปรับปรุงยอดรางวัล" });
+            }
+
+            const resultData = {
+              success: true,
+              count: drawCount,
+              winners: pickedWinners,
+              winner_ids: winnerIds,
+              prize: {
+                ...prize,
+                remaining_amount: prize.remaining_amount - drawCount
+              },
+              // สำหรับ backward compatibility
+              winner: pickedWinners[0]
+            };
+
+            stageState.isDrawing = false;
+            stageState.currentWinners = pickedWinners;
+            if (stageState.selectedPrize && stageState.selectedPrize.id === prize_id) {
+              stageState.selectedPrize = resultData.prize;
+            }
+            broadcastToStage('draw_result', resultData);
+
+            res.json(resultData);
+          });
+        };
+
+        pickedWinners.forEach(winner => {
+          db.run("UPDATE employees SET status = 'won' WHERE id = ?", [winner.id], (errUp) => {
+            if (errUp) console.error("Error setting emp status won:", errUp);
+          });
+
+          // ลบออกจากคิวล็อครางวัลเมื่อได้รับรางวัลแล้ว
+          db.run("DELETE FROM locked_winners WHERE employee_id = ?", [winner.id], () => {});
+
+          db.run("INSERT INTO winners (prize_id, employee_id) VALUES (?, ?)", [prize_id, winner.id], function(errIn) {
+            if (errIn) {
+              console.error("Error inserting winner:", errIn);
+              hasError = true;
+            } else {
+              winnerIds.push({ winner_id: this.lastID, employee_id: winner.id, employee: winner });
+            }
+            completedCount++;
+            if (completedCount === pickedWinners.length) {
+              finishDraw();
+            }
+          });
         });
       });
     });
