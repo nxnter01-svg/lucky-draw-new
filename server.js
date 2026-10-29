@@ -736,8 +736,8 @@ app.post('/api/draw', (req, res) => {
             if (errUp) console.error("Error setting emp status won:", errUp);
           });
 
-          // ลบออกจากคิวล็อครางวัลเมื่อได้รับรางวัลแล้ว
-          db.run("DELETE FROM locked_winners WHERE employee_id = ?", [winner.id], () => {});
+          // คงรายชื่อที่ล็อคไว้ในตาราง locked_winners เสมอ (ไม่ลบออกเมื่อสุ่มได้)
+          // เพื่อให้เมื่อกดรีเซ็ตรางวัลหรือคืนสิทธิ์ รายชื่อนี้จะยังคงล็อคอยู่จนกว่าจะกดยกเลิกเอง
 
           db.run("INSERT INTO winners (prize_id, employee_id) VALUES (?, ?)", [prize_id, winner.id], function(errIn) {
             if (errIn) {

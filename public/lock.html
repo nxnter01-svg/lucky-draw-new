@@ -248,7 +248,7 @@
       grid.innerHTML = prizes.map(p => {
         const isSelected = Number(p.id) === Number(selectedPrizeId);
         const isStageActive = Number(p.id) === Number(stageSelectedPrizeId);
-        const lockedCount = locks.filter(l => Number(l.prize_id) === Number(p.id) && l.employee_status === 'eligible').length;
+        const lockedCount = locks.filter(l => Number(l.prize_id) === Number(p.id)).length;
         const isOut = p.remaining_amount <= 0;
 
         return `
@@ -283,9 +283,9 @@
       const dept = document.getElementById('deptFilterSelect').value;
 
       const eligibleList = employees.filter(e => e.status === 'eligible');
-      document.getElementById('eligibleCountBadge').textContent = `ผู้มีสิทธิ์ ${eligibleList.length} คน`;
+      document.getElementById('eligibleCountBadge').textContent = `ผู้มีสิทธิ์ ${eligibleList.length} / ${employees.length} คน`;
 
-      const filtered = eligibleList.filter(e => {
+      const filtered = employees.filter(e => {
         const fullName = (e.name || `${e.rank || ''} ${e.first_name || ''} ${e.last_name || ''}`).toLowerCase();
         const code = (e.emp_code || '').toLowerCase();
         const d = (e.department || '').toLowerCase();
@@ -306,6 +306,7 @@
         const fullName = e.name || `${e.rank ? e.rank + ' ' : ''}${e.first_name || ''} ${e.last_name || ''}`.trim();
         const existingLock = lockByEmpId[Number(e.id)];
         const isLockedThisPrize = existingLock && Number(existingLock.prize_id) === Number(selectedPrizeId);
+        const hasWon = e.status === 'won';
 
         return `
           <div class="bg-slate-800/80 hover:bg-slate-800 border ${isLockedThisPrize ? 'border-pink-500/70 bg-pink-950/20' : 'border-slate-700/80'} rounded-2xl px-4 py-2.5 flex items-center justify-between gap-3 transition">
@@ -314,6 +315,9 @@
                 <span class="font-bold text-sm sm:text-base text-white">${fullName}</span>
                 ${e.special_type && e.special_type !== 'ปกติ'
                   ? `<span class="text-[11px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-2 py-0.5 rounded-full font-bold">${e.special_type}</span>`
+                  : ''}
+                ${hasWon
+                  ? `<span class="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded-full font-bold">🏆 ได้รางวัลแล้ว</span>`
                   : ''}
                 ${existingLock
                   ? `<span class="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full font-bold">🔒 ล็อคไว้กับ: ${existingLock.prize_name}</span>`
@@ -395,7 +399,9 @@
                       <div class="font-bold text-sm text-white truncate">${fullName}</div>
                       <div class="text-xs text-slate-400">
                         🎖️ ${item.department || '-'} • <span class="font-mono">${item.emp_code || ''}</span>
-                        ${!isEligible ? `<span class="text-rose-400 font-bold ml-1">(ได้รางวัลไปแล้ว)</span>` : ''}
+                        ${isEligible
+                          ? `<span class="text-emerald-400 font-bold ml-1">(🟢 พร้อมออกรางวัล)</span>`
+                          : `<span class="text-amber-300 font-bold ml-1">(🏆 ได้รางวัลแล้ว • ล็อคค้างไว้)</span>`}
                       </div>
                     </div>
                   </div>
@@ -470,7 +476,7 @@
             stageSelectedPrizeId = msg.data.prize.id;
             document.getElementById('stageActivePrizeText').textContent = msg.data.prize.name;
             renderPrizes();
-          } else if (msg.event === 'draw_result' || msg.event === 'winner_cancelled' || msg.event === 'SystemReset') {
+          } else if (msg.event === 'draw_result' || msg.event === 'winner_cancelled' || msg.event === 'winners_reset' || msg.event === 'SystemReset') {
             refreshAll();
           }
         } catch (err) {}
