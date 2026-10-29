@@ -313,24 +313,69 @@
 
   <!-- Modal นำเข้ารายชื่อแบบชุดใหญ่ (Bulk Import Modal) -->
   <div id="bulkImportModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[92vh] overflow-y-auto flex flex-col">
       <div class="flex justify-between items-center border-b pb-3">
         <div>
           <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <span>📋</span> นำเข้ารายชื่อพนักงานแบบชุด
+            <span>📋</span> นำเข้ารายชื่อพนักงานแบบชุดใหญ่
           </h3>
-          <p class="text-xs text-slate-500 mt-0.5">วางข้อมูลรายชื่อ 1 บรรทัดต่อ 1 คน</p>
+          <p class="text-xs text-slate-500 mt-0.5">เลือกยศ สังกัด และสถานะด้านล่าง แล้ววางเฉพาะรายชื่อ (1 บรรทัดต่อ 1 คน) ได้ทันที</p>
         </div>
         <button onclick="closeBulkImportModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
       </div>
 
-      <div class="space-y-2">
-        <label class="block text-xs font-bold text-slate-700">
-          รูปแบบ: <span class="font-mono text-indigo-600">ยศ, ชื่อ, นามสกุล, สังกัด</span> หรือ <span class="font-mono text-indigo-600">ชื่อ นามสกุล, สังกัด</span>
-        </label>
-        <textarea id="bulkImportText" rows="9" class="w-full border-2 border-slate-200 p-3 rounded-xl focus:border-indigo-500 focus:outline-none text-xs font-mono" placeholder="จ.อ., สมชาย, ใจดี, กองบิน 1
-ร.ท., สมหญิง, มั่นคง, แผนกช่าง
-นาย, วิชัย, ร่ำรวย, แผนกการเงิน"></textarea>
+      <!-- ตัวเลือกตั้งค่าสำหรับรายชื่อชุดนี้ -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- เลือกยศของชุดนี้ -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">🎖️ เลือกยศ / คำนำหน้า (ทั้งชุด):</label>
+            <select id="bulkRankSelect" class="w-full border border-slate-300 p-2 rounded-lg text-xs font-bold bg-white text-slate-800 focus:outline-indigo-500">
+              <option value="">-- ไม่ระบุ (หรือพิมพ์ในบรรทัด) --</option>
+            </select>
+          </div>
+
+          <!-- เลือกสังกัดของชุดนี้ -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">🏢 เลือกสังกัด (ทั้งชุด):</label>
+            <select id="bulkDeptSelect" class="w-full border border-slate-300 p-2 rounded-lg text-xs font-bold bg-white text-slate-800 focus:outline-indigo-500">
+              <option value="">-- เลือกสังกัด (หรือพิมพ์ในบรรทัด) --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ติ๊กเลือกสถานะ ปกติ / เข้าเวร / ไปราชการ -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">🏷️ ติ๊กเลือกจำพวกพิเศษ (ทั้งชุด):</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs p-2 rounded-lg border-2 border-emerald-200 bg-white hover:bg-emerald-50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 text-slate-700 transition shadow-xs">
+              <input type="radio" name="bulkSpecialType" value="ปกติ" checked class="w-4 h-4 text-emerald-600">
+              <span>🟢 ปกติ</span>
+            </label>
+            <label class="flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs p-2 rounded-lg border-2 border-amber-200 bg-white hover:bg-amber-50 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 text-amber-900 transition shadow-xs">
+              <input type="radio" name="bulkSpecialType" value="เข้าเวร" class="w-4 h-4 text-amber-600">
+              <span>🛡️ เข้าเวร</span>
+            </label>
+            <label class="flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs p-2 rounded-lg border-2 border-indigo-200 bg-white hover:bg-indigo-50 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 text-indigo-900 transition shadow-xs">
+              <input type="radio" name="bulkSpecialType" value="ไปราชการ" class="w-4 h-4 text-indigo-600">
+              <span>✈️ ไปราชการ</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-1.5">
+        <div class="flex flex-wrap items-center justify-between gap-1">
+          <label class="block text-xs font-bold text-slate-700">
+            ✍️ วางรายชื่อ (1 บรรทัด ต่อ 1 คน):
+          </label>
+          <span class="text-[11px] text-indigo-600 font-semibold">
+            พิมพ์แค่ <code class="bg-indigo-50 px-1.5 py-0.5 rounded">ชื่อ นามสกุล</code> ได้เลย (หรือ <code class="bg-indigo-50 px-1.5 py-0.5 rounded">ชื่อ นามสกุล, สังกัด</code>)
+          </span>
+        </div>
+        <textarea id="bulkImportText" rows="8" class="w-full border-2 border-slate-200 p-3 rounded-xl focus:border-indigo-500 focus:outline-none text-xs font-mono" placeholder="สมชาย ใจดี
+สมหญิง มั่นคง
+วิชัย ร่ำรวย"></textarea>
       </div>
 
       <div id="bulkImportStatus" class="hidden text-xs p-2.5 rounded-lg font-bold"></div>
@@ -516,13 +561,21 @@
       }
     }
 
-    // อัปเดต Dropdown เลือกยศในฟอร์มเพิ่มพนักงาน
+    // อัปเดต Dropdown เลือกยศในฟอร์มเพิ่มพนักงาน และ Modal นำเข้าชุดใหญ่
     function updateRankSelect() {
       const select = document.getElementById('empRankSelect');
       const selectedVal = select.value;
       select.innerHTML = '<option value="">-- เลือกยศ / คำนำหน้า --</option>' + 
         currentRanks.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
       if (selectedVal) select.value = selectedVal;
+
+      const bulkRankSelect = document.getElementById('bulkRankSelect');
+      if (bulkRankSelect) {
+        const prevBulkRank = bulkRankSelect.value;
+        bulkRankSelect.innerHTML = '<option value="">-- ไม่ระบุ (หรือพิมพ์ในบรรทัด) --</option>' +
+          currentRanks.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+        if (prevBulkRank) bulkRankSelect.value = prevBulkRank;
+      }
     }
 
     // เรนเดอร์ตารางจัดการยศ พร้อม Drag and Drop และปุ่มเลื่อนขึ้น/ลง
@@ -912,6 +965,15 @@
           depts.map(d => `<option value="${d.name}">🏢 ${d.name}</option>`).join('');
         if (prevFilter) filterDeptSelect.value = prevFilter;
 
+        // ใส่ใน dropdown สังกัดของ Modal นำเข้าชุดใหญ่
+        const bulkDeptSelect = document.getElementById('bulkDeptSelect');
+        if (bulkDeptSelect) {
+          const prevBulkDept = bulkDeptSelect.value;
+          bulkDeptSelect.innerHTML = '<option value="">-- เลือกสังกัด (หรือพิมพ์ในบรรทัด) --</option>' +
+            depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+          if (prevBulkDept) bulkDeptSelect.value = prevBulkDept;
+        }
+
         // โหลดพนักงาน
         const empsRes = await fetch(`${API}/employees`);
         if (!empsRes.ok) throw new Error("Cannot fetch employees");
@@ -1120,6 +1182,19 @@
       document.getElementById('bulkImportText').value = '';
       const statusBox = document.getElementById('bulkImportStatus');
       statusBox.classList.add('hidden');
+
+      // ซิงค์ค่าเริ่มต้นจากฟอร์มหลักถ้าเคยเลือกไว้
+      const bulkRankSelect = document.getElementById('bulkRankSelect');
+      const mainRankSelect = document.getElementById('empRankSelect');
+      if (bulkRankSelect && mainRankSelect && !bulkRankSelect.value && mainRankSelect.value) {
+        bulkRankSelect.value = mainRankSelect.value;
+      }
+
+      const bulkDeptSelect = document.getElementById('bulkDeptSelect');
+      if (bulkDeptSelect && empDeptSelect && !bulkDeptSelect.value && empDeptSelect.value) {
+        bulkDeptSelect.value = empDeptSelect.value;
+      }
+
       document.getElementById('bulkImportModal').classList.remove('hidden');
     }
 
@@ -1135,29 +1210,50 @@
         return;
       }
 
+      const defaultRank = (document.getElementById('bulkRankSelect')?.value || '').trim();
+      const defaultDept = (document.getElementById('bulkDeptSelect')?.value || '').trim();
+      const defaultSpecial = document.querySelector('input[name="bulkSpecialType"]:checked')?.value || 'ปกติ';
+
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
       const employees = [];
 
       lines.forEach(line => {
-        let parts = line.includes(',') ? line.split(',') : line.split('\t');
-        parts = parts.map(p => p.trim());
+        if (line.includes(',') || line.includes('\t')) {
+          let parts = line.includes(',') ? line.split(',') : line.split('\t');
+          parts = parts.map(p => p.trim()).filter(Boolean);
 
-        if (parts.length >= 5) {
-          const sp = (parts[4] === 'เข้าเวร' || parts[4] === 'ไปราชการ') ? parts[4] : 'ปกติ';
-          employees.push({ rank: parts[0], first_name: parts[1], last_name: parts[2], department: parts[3], special_type: sp });
-        } else if (parts.length === 4) {
-          employees.push({ rank: parts[0], first_name: parts[1], last_name: parts[2], department: parts[3], special_type: 'ปกติ' });
-        } else if (parts.length === 3) {
-          employees.push({ first_name: parts[0], last_name: parts[1], department: parts[2], special_type: 'ปกติ' });
-        } else if (parts.length === 2) {
-          const nameParts = parts[0].split(' ').filter(Boolean);
-          if (nameParts.length >= 2) {
-            employees.push({ first_name: nameParts[0], last_name: nameParts.slice(1).join(' '), department: parts[1], special_type: 'ปกติ' });
-          } else {
-            employees.push({ name: parts[0], department: parts[1], special_type: 'ปกติ' });
+          if (parts.length >= 5) {
+            const sp = (parts[4] === 'เข้าเวร' || parts[4] === 'ไปราชการ' || parts[4] === 'ปกติ') ? parts[4] : defaultSpecial;
+            employees.push({ rank: parts[0] || defaultRank, first_name: parts[1], last_name: parts[2], department: parts[3] || defaultDept || 'ทั่วไป', special_type: sp });
+          } else if (parts.length === 4) {
+            employees.push({ rank: parts[0] || defaultRank, first_name: parts[1], last_name: parts[2], department: parts[3] || defaultDept || 'ทั่วไป', special_type: defaultSpecial });
+          } else if (parts.length === 3) {
+            employees.push({ rank: defaultRank, first_name: parts[0], last_name: parts[1], department: parts[2] || defaultDept || 'ทั่วไป', special_type: defaultSpecial });
+          } else if (parts.length === 2) {
+            const nameParts = parts[0].split(/\s+/).filter(Boolean);
+            if (nameParts.length >= 2) {
+              employees.push({ rank: defaultRank, first_name: nameParts[0], last_name: nameParts.slice(1).join(' '), department: parts[1] || defaultDept || 'ทั่วไป', special_type: defaultSpecial });
+            } else if (defaultDept) {
+              employees.push({ rank: defaultRank, first_name: parts[0], last_name: parts[1], department: defaultDept, special_type: defaultSpecial });
+            } else {
+              employees.push({ rank: defaultRank, first_name: parts[0], last_name: '', department: parts[1] || 'ทั่วไป', special_type: defaultSpecial });
+            }
+          } else if (parts.length === 1) {
+            const nameParts = parts[0].split(/\s+/).filter(Boolean);
+            if (nameParts.length >= 2) {
+              employees.push({ rank: defaultRank, first_name: nameParts[0], last_name: nameParts.slice(1).join(' '), department: defaultDept || 'ทั่วไป', special_type: defaultSpecial });
+            } else {
+              employees.push({ rank: defaultRank, first_name: parts[0], last_name: '', department: defaultDept || 'ทั่วไป', special_type: defaultSpecial });
+            }
           }
         } else {
-          employees.push({ name: parts[0], department: 'ทั่วไป', special_type: 'ปกติ' });
+          // กรณีวางเฉพาะ ชื่อ นามสกุล (ไม่มีลูกน้ำ)
+          const nameParts = line.split(/\s+/).filter(Boolean);
+          if (nameParts.length >= 2) {
+            employees.push({ rank: defaultRank, first_name: nameParts[0], last_name: nameParts.slice(1).join(' '), department: defaultDept || 'ทั่วไป', special_type: defaultSpecial });
+          } else if (nameParts.length === 1) {
+            employees.push({ rank: defaultRank, first_name: nameParts[0], last_name: '', department: defaultDept || 'ทั่วไป', special_type: defaultSpecial });
+          }
         }
       });
 
